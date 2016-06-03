@@ -23,12 +23,19 @@ module.exports = function(app) {
     const body = req.body;
     const streamkey = req.body.name;
 
-    console.log(req.originalUrl);
+    console.log('hitting:', req.originalUrl);
     app.service('users').find({
       query: { streamkey: streamkey }
     })
     // Then we're good to stream
-    .then(users => res.status(200).send(req.method+' OK'))
+    .then((users) => {
+      console.log(users.total, 'users found for that stream key');
+      if (users.total > 0) {
+        res.status(200).send(req.method+' OK')
+      }else{
+        res.status(404).send('Not Found')
+      }
+    })
     // On errors, just call our error middleware
     .catch(() => res.status(403).send('Forbidden'));
   };
