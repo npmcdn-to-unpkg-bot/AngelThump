@@ -18,25 +18,56 @@
 // is accessed with the url rtmp://localhost/app/movie?a=100&b=face&foo=bar 
 // then a, b & foo are also sent with callback.
 
-module.exports = function(app) {
+module.exports.initial = function(app) {
   return function(req, res, next) {
     const body = req.body;
     const streamkey = req.body.name;
 
-    console.log('hitting:', req.originalUrl);
+    console.log('initial hit to:', req.originalUrl);
     app.service('users').find({
       query: { streamkey: streamkey }
     })
     // Then we're good to stream
     .then((users) => {
-      console.log(users.total, 'users found for that stream key');
+      console.log(users.total, 'users found for that stream key', streamkey);
       if (users.total > 0) {
-        res.status(200).send(req.method+' OK')
+        // res.status(200).send(req.method+' OK')
+        const public_endpoint = `${'/publish/'}${users.data[0]._id}?streamkey=${streamkey}`;
+        console.log('public_endpoint', public_endpoint);
+        res.redirect(public_endpoint);
       }else{
-        res.status(404).send('Not Found')
+        res.status(404).send('No Users With That Key')
       }
     })
     // On errors, just call our error middleware
     .catch(() => res.status(403).send('Forbidden'));
   };
-};
+}
+module.exports.ultimate = function(app) {
+  return function(req, res, next) {
+    console.log('redirected onto:', req.originalUrl);
+
+    const userid = req.params.userid;
+    const streamkey = req.query.streamkey;
+
+    // a little redundant:
+    app.service('users').find({
+      query: { 
+        _id: userid,
+        streamkey: streamkey
+      }
+    })
+    // Then we're good to stream
+    .then((users) => {
+      console.log(users.total, 'users found for that id and stream key');
+      if (users.total > 0) {
+        res.status(200).send(req.method+' OK')
+        // res.redirect(`${'/publsh/'}${users.data[0]._id}?streamkey=${streamkey}`)
+      }else{
+        res.status(403).send('Forbidden, Wrong Stream Key')
+      }
+    })
+    // On errors, just call our error middleware
+    .catch(() => res.status(403).send('Forbidden'));
+  };
+}
