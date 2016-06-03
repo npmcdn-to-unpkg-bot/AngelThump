@@ -1,6 +1,7 @@
 'use strict';
 
 const signup = require('./signup');
+const verify = require('./verify');
 
 const handler = require('feathers-errors/handler');
 const notFound = require('./not-found-handler');
@@ -13,6 +14,9 @@ module.exports = function() {
   const app = this;
 
   app.post('/signup', signup(app));
+
+  app.get('/publish', verify(app));
+  app.post('/publish', verify(app));
   
   app.use(notFound());
   app.use(logger(app));
