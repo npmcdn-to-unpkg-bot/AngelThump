@@ -32,9 +32,10 @@ module.exports.initial = function(app) {
       console.log(users.total, 'users found for that stream key', streamkey);
       if (users.total > 0) {
         // res.status(200).send(req.method+' OK')
-        const public_endpoint = `${'/publish/'}${users.data[0]._id}?streamkey=${streamkey}`;
+        const public_endpoint = `${'/live/'}${users.data[0]._id}?streamkey=${streamkey}`;
         console.log('public_endpoint', public_endpoint);
         res.redirect(public_endpoint);
+        res.redirect(users.data[0]._id)
       }else{
         res.status(404).send('No Users With That Key')
       }
@@ -62,7 +63,7 @@ module.exports.ultimate = function(app) {
       console.log(users.total, 'users found for that id and stream key');
       if (users.total > 0) {
         res.status(200).send(req.method+' OK')
-        // res.redirect(`${'/publsh/'}${users.data[0]._id}?streamkey=${streamkey}`)
+        // res.redirect(`${'/live/'}${users.data[0]._id}?streamkey=${streamkey}`)
       }else{
         res.status(403).send('Forbidden, Wrong Stream Key')
       }

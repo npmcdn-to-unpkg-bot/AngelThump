@@ -25,6 +25,8 @@ Getting up and running is as easy as 1, 2, 3.
 
 ## Testing
 
+curl --data 'name=ce794e9b6e252c0436bacb530a09a370817ecb8e804d2a20ddbe8173cba74de4' -L 'http://localhost:3030/live'
+
 Simply run `npm test` and all your tests in the `test/` directory will be run.
 
 ## Scaffolding

@@ -16,10 +16,10 @@ module.exports = function() {
   app.post('/signup', signup(app));
 
   // support GET for easy testing
-  app.get('/publish/:userid', verify.ultimate(app));
-  app.post('/publish/:userid', verify.ultimate(app));
-  app.get('/publish', verify.initial(app));
-  app.post('/publish', verify.initial(app));
+  app.get('/live/:userid', verify.ultimate(app));
+  app.post('/live/:userid', verify.ultimate(app));
+  app.get('/live', verify.initial(app));
+  app.post('/live', verify.initial(app));
   
   app.use(notFound());
   app.use(logger(app));
