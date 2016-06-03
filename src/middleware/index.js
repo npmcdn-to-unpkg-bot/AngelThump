@@ -18,8 +18,8 @@ module.exports = function() {
   // support GET for easy testing
   app.get('/live/:userid', verify.ultimate(app));
   app.post('/live/:userid', verify.ultimate(app));
-  app.get('/live', verify.initial(app));
-  app.post('/live', verify.initial(app));
+  app.get('/live/', verify.initial(app));
+  app.post('/live/', verify.initial(app));
   
   app.use(notFound());
   app.use(logger(app));
