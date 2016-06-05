@@ -3,7 +3,8 @@ const PLACEHOLDER = 'https://placeimg.com/60/60/people';
 // An anonymous user if the message does not have that information
 const dummyUser = {
   avatar: PLACEHOLDER,
-  email: 'Anonymous',
+  username: 'Anonymous',
+  email: 'anon@example.com',
   streamkey: 'none'
 };
 
@@ -75,7 +76,7 @@ const UserList = React.createClass({
             <a className="block relative" href="#">
               <img src={user.avatar || PLACEHOLDER} className="avatar" />
               <span className="absolute username">
-                {user.email}
+                {user.username}
               </span>
               <span>
                 {user.streamkey}
@@ -101,10 +102,10 @@ const MessageList = React.createClass({
     const sender = message.sentBy || dummyUser;
 
     return <div className="message flex flex-row">
-      <img src={sender.avatar || PLACEHOLDER} alt={sender.email} className="avatar" />
+      <img src={sender.avatar || PLACEHOLDER} alt={sender.username} className="avatar" />
       <div className="message-wrapper">
         <p className="message-header">
-          <span className="username font-600">{sender.email}</span>
+          <span className="username font-600">{sender.username}</span>
           <span className="sent-date font-300">
             {moment(message.createdAt).format('MMM Do, hh:mm:ss')}
           </span>

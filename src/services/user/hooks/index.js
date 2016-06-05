@@ -1,5 +1,7 @@
 'use strict';
 
+const username = require('./username');
+
 const streamkey = require('./streamkey');
 
 const gravatar = require('./gravatar');
@@ -22,18 +24,27 @@ exports.before = {
     auth.restrictToAuthenticated(),
     auth.restrictToOwner({ ownerField: '_id' })
   ],
-  create: [auth.hashPassword(), gravatar(), streamkey()],
+  create: [
+    auth.hashPassword(), 
+    gravatar(), 
+    streamkey(), 
+    username()
+  ],
   update: [
     auth.verifyToken(),
     auth.populateUser(),
     auth.restrictToAuthenticated(),
-    auth.restrictToOwner({ ownerField: '_id' })
+    auth.restrictToOwner({ ownerField: '_id' }),
+    username()
   ],
   patch: [
     auth.verifyToken(),
     auth.populateUser(),
     auth.restrictToAuthenticated(),
-    auth.restrictToOwner({ ownerField: '_id' })
+    auth.restrictToOwner({ ownerField: '_id' }),
+    // todo: check if patch only sends partial data
+    // so we don't accidentally wipe usernames
+    // username()
   ],
   remove: [
     auth.verifyToken(),
