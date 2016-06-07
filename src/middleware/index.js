@@ -2,6 +2,7 @@
 
 const signup = require('./signup');
 const verify = require('./verify');
+const api = require('./api');
 
 const handler = require('feathers-errors/handler');
 const notFound = require('./not-found-handler');
@@ -18,6 +19,8 @@ module.exports = function() {
   // support GET for easy testing
   app.get('/live', verify.initial(app));
   app.post('/live', verify.initial(app));
+
+  app.use('/api/:username' api(app))
   
   app.use(notFound());
   app.use(logger(app));
