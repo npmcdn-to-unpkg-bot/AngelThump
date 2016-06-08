@@ -19,8 +19,11 @@ module.exports = function() {
   // support GET for easy testing
   app.get('/live', verify.initial(app));
   app.post('/live', verify.initial(app));
+  app.get('/api', function(req, res, next){
+    res.status(200).send('ok');
+  });
 
-  app.use('/api/:username' api(app))
+  app.get('/api/:username', api(app));
   
   app.use(notFound());
   app.use(logger(app));

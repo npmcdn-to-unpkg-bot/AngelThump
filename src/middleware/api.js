@@ -1,7 +1,6 @@
 'use strict';
 
 const rp = require('request-promise');
-const errors = require('feathers-errors');
 
 module.exports = function(app) {
   return function(req, res, next) {
@@ -15,13 +14,15 @@ module.exports = function(app) {
     // thumbnail
     // "http://www.overpoweredstrim.me/thumbnail_mannekino.jpg"
     const requested_username = req.params.username;
+    console.log('requested_username!!:', requested_username);
 
     app.service('users').find({
       query: { username: requested_username }
     })
+
     // Then we're good to check apis
     .then((users) => {
-      console.log(users.total, 'users found for that stream username', username);
+      console.log(users.total, 'users found for that stream username', requested_username);
       if (users.total > 0) {
         const username = users.data[0].username;
         // const title = users.data[0].title;
@@ -31,10 +32,10 @@ module.exports = function(app) {
         ]).then( function (values){
           res.json({
             live: values[0].trim() === "1",
-            title: "Placeholder Stream Title",
+            title: `${username}'s stream`,
             // title: title,
             viewers: parseInt(values[1], 10),
-            thumbnail: `http://www.overpoweredstrim.me/thumbnail_${username}.jpg`,
+            thumbnail: `http://www.overpoweredstrim.me/thumbnail/${username}.jpg`,
           })
         }).catch(() => res.status(404).send('API Date Not Found'));
       }else{
@@ -42,7 +43,10 @@ module.exports = function(app) {
       }
     })
     // On errors, just call our error middleware
-    .catch(() => res.status(403).send('Forbidden'));
-    next();
+    .catch((e) => {
+      console.log(e, 'forbidden requested_username:', requested_username);
+      console.error(e.stack);
+      res.status(403).send('Forbidden')
+    });
   };
 };

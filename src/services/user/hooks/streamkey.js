@@ -18,7 +18,7 @@ const keyGen = email => {
 
 module.exports = function() {
   return function(hook) {
-    // Assign the new data with the Gravatar image
+    // Assign the new data with the streamkey
     hook.data = Object.assign({}, hook.data, {
       streamkey: keyGen(hook.data.email)
     });
