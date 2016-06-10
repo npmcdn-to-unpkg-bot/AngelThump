@@ -1,0 +1,80 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <link href="/css/video-js.css" rel="stylesheet">
+  <link href="/css/videojs-resolution-switcher.css" rel="stylesheet">
+  <link href="/css/videojs.logobrand.css" rel="stylesheet">
+
+  <title>
+    EMBED PLAYER
+  </title>
+
+  <style type="text/css"> html {
+    margin: 0;
+    padding: 0;
+    background: #000000;
+    overflow: hidden;
+  }
+  
+  #yee {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+  }
+  
+  .video-js.vjs-playing .vjs-tech {
+    pointer-events: none;
+  }
+  
+  .vjs-fullscreen.vjs-user-inactive {
+    cursor: none;
+  }
+  
+  </style>
+  
+</head>
+
+<body>
+
+  <video id=yee class="video-js vjs-default-skin" autoplay controls preload="auto" data-setup='{ }'>
+
+</video>
+  <script src="http://vjs.zencdn.net/5.9.2/video.js"></script>
+  <script src="//overpoweredstrim.me/videojs.hls.min.js"></script>
+  <script src="//overpoweredstrim.me/videojs-resolution-switcher.js"></script>
+  <script src="//overpoweredstrim.me/videojs.logobrand.js"></script>
+  <script src="//overpoweredstrim.me/videojs-persistvolume.js"></script>
+
+  <script>
+    var player = videojs('yee');
+    player.videoJsResolutionSwitcher();
+    player.logobrand({
+         image: "http://www.facesofangels.com/graphics/paypalLogo.png",
+         destination: "https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=2S5PZYCYRRNLW&lc=US&item_name=Overpowered%27s%20fund%20for%20VPS%20uptime&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted"});
+    
+    var channel = window.location.search.replace("?channel=", '');
+
+    console.log(channel);
+
+    var sources = 
+    [
+      {type:"application/x-mpegURL", src: "http://us-loadbalancer.overpoweredstrim.me/hls/" + channel + "/index.m3u8", label: "US"},
+      { type: "application/x-mpegURL", src: "http://eu.overpoweredstrim.me/hls/" + channel + "/index.m3u8", label: 'EU' },
+    ];
+    
+    player.updateSrc(sources);
+    player.currentResolution('US');
+    
+    (function() {
+          player.persistvolume({
+            namespace: "YEE boi"
+          });
+        })();
+  </script>
+
+
+</body>
+
+</html>

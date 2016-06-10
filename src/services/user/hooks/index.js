@@ -61,7 +61,7 @@ exports.after = {
   find: [],
   get: [],
   create: [],
-  update: [],
-  patch: [],
-  remove: []
+  update: [hooks.remove('streamkey')],
+  patch: [hooks.remove('streamkey')],
+  remove: [hooks.remove('streamkey')]
 };

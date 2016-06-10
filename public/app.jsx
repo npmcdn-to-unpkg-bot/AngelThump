@@ -20,115 +20,63 @@ const app = feathers()
     storage: window.localStorage
   }));
 
-const ComposeMessage = React.createClass({
-  getInitialState() {
-    return { text: '' };
-  },
-
-  updateText(ev) {
-    this.setState({ text: ev.target.value });
-  },
-
-  sendMessage(ev) {
-    // Get the messages service
-    const messageService = app.service('messages');
-    // Create a new message with the text from the input field
-    messageService.create({
-      text: this.state.text
-    }).then(() => this.setState({ text: '' }));
-
-    ev.preventDefault();
-  },
-
-  render() {
-    return <form className="flex flex-row flex-space-between"
-        onSubmit={this.sendMessage}>
-      <input type="text" name="text" className="flex flex-1"
-        value={this.state.text} onChange={this.updateText} />
-      <button className="button-primary" type="submit">Send</button>
-    </form>;
-  }
-});
-
-
-
-const UserList = React.createClass({
+const Profile = React.createClass({
   logout() {
     app.logout().then(() => window.location.href = '/index.html');
   },
 
   render() {
-    const users = this.props.users;
+    const user = this.props.user;
+    console.log('user:', user);
 
-    return <aside className="sidebar col col-3 flex flex-column flex-space-between">
-      <header className="flex flex-row flex-center">
-        <h4 className="font-300 text-center">
-          <span className="font-600 online-count">{users.length}</span> users
-        </h4>
-      </header>
-      <div>
-        edit user profile
-      </div>
-
-      <ul className="flex flex-column flex-1 list-unstyled user-list">
-        {users.map(user =>
-          <li>
-            <a className="block relative" href="#">
-              <img src={user.avatar || PLACEHOLDER} className="avatar" />
-              <span className="absolute username">
-                {user.username}
-              </span>
-              <span>
+    return <main className="container">
+      <div className="row">
+        <div className="col-12 push-4-tablet col-4-tablet">
+          <div className="row">
+            <div className="col-12 col-8-tablet push-2-tablet text-center">
+              <h3 className="title">{user.username} Profile</h3>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-12">
+              <div>
+                <strong>Stream Key</strong>
+              </div>
+              <div>
                 {user.streamkey}
-              </span>
-            </a>
-          </li>
-        )}
-      </ul>
+              </div>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-12">
+              <div>
+                <strong>email</strong>
+              </div>
+              <div>
+                {user.email}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <footer className="flex flex-row flex-center">
         <a href="#" className="logout button button-primary" onClick={this.logout}>
           Sign Out
         </a>
       </footer>
-    </aside>;
+    </main>
+
+    return <aside> 
+      <img src={user.avatar || PLACEHOLDER} className="avatar" />
+      <span className="username font-600">{user.username}</span>
+    </aside>
   }
-});
+})
 
-
-
-const MessageList = React.createClass({
-  // Render a single message
-  renderMessage(message) {
-    const sender = message.sentBy || dummyUser;
-
-    return <div className="message flex flex-row">
-      <img src={sender.avatar || PLACEHOLDER} alt={sender.username} className="avatar" />
-      <div className="message-wrapper">
-        <p className="message-header">
-          <span className="username font-600">{sender.username}</span>
-          <span className="sent-date font-300">
-            {moment(message.createdAt).format('MMM Do, hh:mm:ss')}
-          </span>
-        </p>
-        <p className="message-content font-300">
-          {message.text}
-        </p>
-      </div>
-    </div>;
-  },
-
-  render() {
-    return <main className="chat flex flex-column flex-1 clear">
-      {this.props.messages.map(this.renderMessage)}
-    </main>;
-  }
-});
-
-const ChatApp = React.createClass({
+const ProfileApp = React.createClass({
   getInitialState() {
     return {
-      users: [],
-      messages: []
+      user: {}
     };
   },
 
@@ -140,35 +88,17 @@ const ChatApp = React.createClass({
 
   componentDidMount() {
     const userService = app.service('users');
-    const messageService = app.service('messages');
+    // const messageService = app.service('messages');
+    const cached_user = app.get('user'); 
+    console.log(cached_user._id);
 
-    // Find all users initially
-    userService.find().then(page => this.setState({ users: page.data }));
-    // Listen to new users so we can show them in real-time
-    userService.on('created', user => this.setState({
-      users: this.state.users.concat(user)
-    }));
-
-    // Find the last 10 messages
-    messageService.find({
-      query: {
-        $sort: { createdAt: -1 },
-        $limit: this.props.limit || 10
-      }
-    }).then(page => this.setState({ messages: page.data.reverse() }));
-    // Listen to newly created messages
-    messageService.on('created', message => this.setState({
-      messages: this.state.messages.concat(message)
-    }));
+    userService.get(cached_user._id).then(user => this.setState({ user: user }))
+    .catch(e => console.error(e));
   },
 
   render() {
-    return <div className="flex flex-row flex-1 clear">
-      <UserList users={this.state.users} />
-      <div className="flex flex-column col col-9">
-        <MessageList users={this.state.users} messages={this.state.messages} />
-        <ComposeMessage />
-      </div>
+    return <div>
+      <Profile user={this.state.user} />
     </div>
   }
 });
@@ -177,13 +107,11 @@ app.authenticate().then(() => {
   ReactDOM.render(<div id="app" className="flex flex-column">
     <header className="title-bar flex flex-row flex-center">
       <div className="title-wrapper block center-element">
-        <img className="logo" src="http://feathersjs.com/img/feathers-logo-wide.png"
-          alt="Feathers Logo" />
-        <span className="title">Chat</span>
+        <span className="title">Profile</span>
       </div>
     </header>
 
-    <ChatApp />
+    <ProfileApp />
   </div>, document.body);
 }).catch(error => {
   if(error.code === 401) {
