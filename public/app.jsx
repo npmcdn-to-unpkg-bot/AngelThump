@@ -21,6 +21,23 @@ const app = feathers()
   }));
 
 const Profile = React.createClass({
+  getInitialState() {
+    return {
+      showStreamKey: false
+    };
+  },
+
+  resetStreamKey(){
+    const userService = app.service('users');
+    userService.patch({
+      stream_key: 0
+    });
+  },
+
+  toggleStreamKey(){
+    this.setState({showStreamKey: !this.state.showStreamKey})
+  },
+
   logout() {
     app.logout().then(() => window.location.href = '/index.html');
   },
@@ -40,20 +57,45 @@ const Profile = React.createClass({
           <div className="row">
             <div className="col-12">
               <div>
-                <strong>Stream Key</strong>
+                <strong>email</strong>
               </div>
               <div>
-                {user.streamkey}
+                {user.email}
               </div>
             </div>
           </div>
           <div className="row">
             <div className="col-12">
               <div>
-                <strong>email</strong>
+                <strong>US Ingest URL</strong>
               </div>
               <div>
-                {user.email}
+                rtmp://ingest.overpoweredstrim.me:1935/live
+              </div>
+              <div>
+                <strong>EU Ingest URL</strong>
+              </div>
+              <div>
+                rtmp://eu-ingest.overpoweredstrim.me:1935/live
+              </div>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-12">
+              <div>
+                <strong>Stream Key</strong>
+              </div>
+              <div>
+                <em>Notice! Set your Keyframe Interval to 1 or it will not work!</em>
+              </div>
+              <div>
+                <div>
+                  <a className="button" href="#" onClick={this.toggleStreamKey}>Show Stream Key</a>
+                  <a className="button" href="#" onClick={this.resetStreamKey}>Reset Stream Key</a>
+                </div>
+                <div>
+                  {this.state.showStreamKey ? user.streamkey : "Stream Key Hidden"}
+                </div>
               </div>
             </div>
           </div>
@@ -84,6 +126,8 @@ const ProfileApp = React.createClass({
     // Whenever something happened, scroll to the bottom of the chat window
     const node = this.getDOMNode().querySelector('.chat');
     node.scrollTop = node.scrollHeight - node.clientHeight;
+
+
   },
 
   componentDidMount() {
@@ -94,6 +138,9 @@ const ProfileApp = React.createClass({
 
     userService.get(cached_user._id).then(user => this.setState({ user: user }))
     .catch(e => console.error(e));
+
+
+    userService.on('patched', user => console.log('patched', user));
   },
 
   render() {
