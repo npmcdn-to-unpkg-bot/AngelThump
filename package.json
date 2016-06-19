@@ -1,11 +1,12 @@
 {
-  "name": "feathers-chat",
+  "name": "AngelTump",
   "description": "",
   "version": "0.0.0",
   "homepage": "",
   "main": "src/",
   "keywords": [
-    "feathers"
+    "live streaming",
+    "live video streaming"
   ],
   "license": "MIT",
   "repository": {},
