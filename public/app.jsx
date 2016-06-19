@@ -50,10 +50,9 @@ const Profile = React.createClass({
           <div className="row">
             <div className="col-12">
               <div>
-                <strong>email</strong>
-              </div>
-              <div>
-                {user.email}
+                RTMP URL: rtmp://ingest.overpoweredstrim.me:1935/live
+			rtmp://eu-ingest.overpoweredstrim.me:1935/live
+		Keyframe Interval: 2 (Important)
               </div>
             </div>
           </div>
