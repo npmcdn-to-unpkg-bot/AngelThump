@@ -86,7 +86,7 @@ const Profile = React.createClass({
                 <strong>Stream Key</strong>
               </div>
               <div>
-                <em>Notice! Set your Keyframe Interval to 1 or it will not work!</em>
+                <em>Keyframe Interval: 2 (Important)</em>
               </div>
               <div>
                 <div>
