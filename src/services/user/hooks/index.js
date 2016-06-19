@@ -27,7 +27,7 @@ exports.before = {
   create: [
     auth.hashPassword(), 
     gravatar(), 
-    streamkey(), 
+    streamkey.initialize(), 
     username()
   ],
   update: [
@@ -62,6 +62,9 @@ exports.after = {
   get: [],
   create: [],
   update: [hooks.remove('streamkey')],
-  patch: [hooks.remove('streamkey')],
+  patch: [
+    
+    hooks.remove('streamkey')
+  ],
   remove: [hooks.remove('streamkey')]
 };
