@@ -46,16 +46,16 @@ const Profile = React.createClass({
     const user = this.props.user;
     console.log('user:', user);
 
+    // <a className="button" href="#" onClick={this.resetStreamKey}>Reset Stream Key</a>
+
     return <main className="container">
       <div className="row">
-        <div className="col-12 push-4-tablet col-4-tablet">
-          <div className="row">
-            <div className="col-12 col-8-tablet push-2-tablet text-center">
-              <h3 className="title">{user.username} Profile</h3>
-            </div>
+        <div className="col-lg-8 col-lg-offset-4">
+          <div className="nav">
+            <h3 className="title">{user.username} Profile</h3>
           </div>
           <div className="row">
-            <div className="col-12">
+            <div className="col-md-12">
               <div>
                 <strong>email</strong>
               </div>
@@ -65,7 +65,7 @@ const Profile = React.createClass({
             </div>
           </div>
           <div className="row">
-            <div className="col-12">
+            <div className="col-md-12">
               <div>
                 <strong>US Ingest URL</strong>
               </div>
@@ -81,7 +81,7 @@ const Profile = React.createClass({
             </div>
           </div>
           <div className="row">
-            <div className="col-12">
+            <div className="col-md-12">
               <div>
                 <strong>Stream Key</strong>
               </div>
@@ -90,8 +90,7 @@ const Profile = React.createClass({
               </div>
               <div>
                 <div>
-                  <a className="button" href="#" onClick={this.toggleStreamKey}>Show Stream Key</a>
-                  <a className="button" href="#" onClick={this.resetStreamKey}>Reset Stream Key</a>
+                  <a className="btn btn-primary" href="#" onClick={this.toggleStreamKey}>Show Stream Key</a>
                 </div>
                 <div>
                   {this.state.showStreamKey ? user.streamkey : "Stream Key Hidden"}
@@ -101,8 +100,8 @@ const Profile = React.createClass({
           </div>
         </div>
       </div>
-      <footer className="flex flex-row flex-center">
-        <a href="#" className="logout button button-primary" onClick={this.logout}>
+      <footer className="row text-xs-center">
+        <a href="#" className="logout btn btn-secondary" onClick={this.logout}>
           Sign Out
         </a>
       </footer>
@@ -151,12 +150,16 @@ const ProfileApp = React.createClass({
 });
 
 app.authenticate().then(() => {
-  ReactDOM.render(<div id="app" className="flex flex-column">
-    <header className="title-bar flex flex-row flex-center">
-      <div className="title-wrapper block center-element">
-        <span className="title">Profile</span>
-      </div>
-    </header>
+  ReactDOM.render(<div id="app">
+
+    <nav className="nav navbar navbar-full navbar-light nav-inline">
+      <a className="navbar-brand" href="/">AngelThump Live Streams</a>
+      <ul className="nav navbar-nav">
+        <li className="nav-item active">
+          <p className="nav-link text-muted text-uppercase">Profile</p>
+        </li>
+      </ul>
+    </nav>
 
     <ProfileApp />
   </div>, document.body);
