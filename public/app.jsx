@@ -89,12 +89,14 @@ const Profile = React.createClass({
                 <em>Keyframe Interval: 2 (Important)</em>
               </div>
               <div>
-                <div>
-                  <a className="btn btn-primary" href="#" onClick={this.toggleStreamKey}>Show Stream Key</a>
-                </div>
-                <div>
+                <p>
+                  <a className="btn btn-primary" href="#" onClick={this.toggleStreamKey}>
+                    {this.state.showStreamKey ? "Hide Stream Key" : "Show Stream Key"}
+                  </a>
+                </p>
+                <p>
                   {this.state.showStreamKey ? user.streamkey : "Stream Key Hidden"}
-                </div>
+                </p>
               </div>
             </div>
           </div>
