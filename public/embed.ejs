@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <link href="http://vjs.zencdn.net/5.10.2/video-js.css" rel="stylesheet">
+    <link href="http://vjs.zencdn.net/5.10.4/video-js.css" rel="stylesheet">
     <link href="/css/videojs-resolution-switcher.css" rel="stylesheet">
     <link href="/css/videojs.logobrand.css" rel="stylesheet">
     <link rel="shortcut icon" href="favicon.png">
@@ -41,7 +41,7 @@
 
   <video id=yee class="video-js vjs-default-skin" controls preload="none">
 </video>
-  <script src="http://vjs.zencdn.net/5.10.2/video.js"></script>
+  <script src="http://vjs.zencdn.net/5.10.4/video.js"></script>
   <script src="//overpoweredstrim.me/js/dash.all.debug.js"></script>
   <script src="https://github.com/videojs/videojs-contrib-dash/releases/download/v2.3.0/videojs-dash.js"></script>
   <script src="//overpoweredstrim.me/videojs-resolution-switcher.js"></script>
@@ -52,10 +52,11 @@
 
   var sources = 
     [
-      {type:"application/dash+xml", src: "http://us-loadbalancer.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "US", res: 1},
-      { type: "application/dash+xml", src: "http://ams1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "EU-AMS", res: 2 },
-      { type: "application/dash+xml", src: "http://lon1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "EU-LON", res: 3 },
-      { type: "application/dash+xml", src: "http://sin1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "ASIA", res: 4 }
+      {type:"application/dash+xml", src: "http://cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "TEST", res: 0}
+      //{type:"application/dash+xml", src: "http://us-loadbalancer.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "US", res: 1},
+      //{ type: "application/dash+xml", src: "http://ams1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "EU-AMS", res: 2 },
+      //{ type: "application/dash+xml", src: "http://lon1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "EU-LON", res: 3 },
+      //{ type: "application/dash+xml", src: "http://sin1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "ASIA", res: 4 }
     ];
 
     // local storage makes everything a string, 
@@ -88,7 +89,7 @@
     player.poster('http://overpoweredstrim.me/default.jpg');
 
     player.logobrand({
-         image: "http://overpoweredstrim.me/paypalLogo.png",
+         image: "//overpoweredstrim.me/angelthump.png",
          destination: "https://www.twitchalerts.com/donate/stioverpowered"});
   
     var requestTime = 1000;

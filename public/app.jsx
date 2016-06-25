@@ -83,10 +83,13 @@ const Profile = React.createClass({
           <div className="row">
             <div className="col-md-12">
               <div>
-                <strong>Stream Key</strong>
+                <strong>OBS SETTINGS (VERY IMPORTANT)</strong>
               </div>
               <div>
-                <em>Keyframe Interval: 2 (Important)</em>
+                <em>Keyframe Interval: 2</em>
+              </div>
+              <div>
+              	<em>x264 option: scenecut=-1</em>
               </div>
               <div>
                 <p>
