@@ -52,11 +52,10 @@
 
   var sources = 
     [
-      {type:"application/dash+xml", src: "http://cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "TEST", res: 0}
-      //{type:"application/dash+xml", src: "http://us-loadbalancer.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "US", res: 1},
-      //{ type: "application/dash+xml", src: "http://ams1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "EU-AMS", res: 2 },
-      //{ type: "application/dash+xml", src: "http://lon1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "EU-LON", res: 3 },
-      //{ type: "application/dash+xml", src: "http://sin1.overpoweredstrim.me/dash/" + channel + "/index.mpd", label: "ASIA", res: 4 }
+      {type:"application/dash+xml", src: "http://cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "US-EAST", res: 1},
+      {type:"application/dash+xml", src: "http://w-cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "US-WEST", res: 2},
+      {type:"application/dash+xml", src: "http://eu-cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "EU", res: 3},
+      {type:"application/dash+xml", src: "http://128.199.80.156/dash/" + channel + "/index.mpd", label: "ASIA", res: 4}
     ];
 
     // local storage makes everything a string, 
@@ -117,8 +116,6 @@
         player.error(null);
         alert("Please use Firefox DEV Edition or use Chrome to view this stream");
       }
-      //player.error(null);
-      //retry();
     })
 
     
