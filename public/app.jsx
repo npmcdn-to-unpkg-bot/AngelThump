@@ -57,7 +57,7 @@ const Profile = React.createClass({
           <div className="row">
             <div className="col-md-12">
               <div>
-                <strong>email</strong>
+                <strong>Email</strong>
               </div>
               <div>
                 {user.email}
@@ -70,13 +70,13 @@ const Profile = React.createClass({
                 <strong>US Ingest URL</strong>
               </div>
               <div>
-                rtmp://ingest.overpoweredstrim.me:1935/live
+                rtmp://ingest.angelthump.com:1935/live
               </div>
               <div>
                 <strong>EU Ingest URL</strong>
               </div>
               <div>
-                rtmp://eu-ingest.overpoweredstrim.me:1935/live
+                rtmp://eu-ingest.angelthump.com:1935/live
               </div>
             </div>
           </div>

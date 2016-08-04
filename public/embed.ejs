@@ -2,16 +2,17 @@
 <html>
 
 <head>
-    <link href="http://vjs.zencdn.net/5.10.4/video-js.css" rel="stylesheet">
+    <link href="//vjs.zencdn.net/5.10.7/video-js.css" rel="stylesheet">
     <link href="/css/videojs-resolution-switcher.css" rel="stylesheet">
     <link href="/css/videojs.logobrand.css" rel="stylesheet">
-    <link rel="shortcut icon" href="favicon.png">
+    <link rel="shortcut icon" href="/favicon.png">
 
   <title>
-    <%= username %> live stream embed player
+    AngelThump
   </title>
 
-  <style type="text/css"> html {
+  <style type="text/css"> 
+  html {
     margin: 0;
     padding: 0;
     background: #000000;
@@ -39,28 +40,30 @@
 
 <body>
 
-  <video id=yee class="video-js vjs-default-skin" controls preload="none">
+  <video id=yee class="video-js vjs-default-skin" autoplay controls preload="auto">
 </video>
-  <script src="http://vjs.zencdn.net/5.10.4/video.js"></script>
-  <script src="//overpoweredstrim.me/js/dash.all.debug.js"></script>
-  <script src="https://github.com/videojs/videojs-contrib-dash/releases/download/v2.3.0/videojs-dash.js"></script>
-  <script src="//overpoweredstrim.me/videojs-resolution-switcher.js"></script>
-  <script src="//overpoweredstrim.me/videojs.logobrand.js"></script>
-  <script src="//overpoweredstrim.me/videojs-persistvolume.js"></script>
+  <script src="//vjs.zencdn.net/5.10.7/video.js"></script>
+  <script src="/js/videojs-contrib-hls-test.js"></script>
+  <script src="/js/videojs-resolution-switcher.js"></script>
+  <script src="/js/videojs.logobrand.js"></script>
+  <script src="/js/videojs-persistvolume.js"></script>
   <script>
     var channel = "<%= username %>";
 
   var sources = 
     [
-      {type:"application/dash+xml", src: "http://cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "US-EAST", res: 1},
-      {type:"application/dash+xml", src: "http://w-cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "US-WEST", res: 2},
-      {type:"application/dash+xml", src: "http://eu-cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "EU", res: 3},
-      {type:"application/dash+xml", src: "http://128.199.80.156/dash/" + channel + "/index.mpd", label: "ASIA", res: 4}
+      //{type:"application/x-mpegURL", src: "http://cdn.angelthump.com/hls/" + channel + "_source/index.m3u8", label: "Source", res: 5},
+      //{type:"application/x-mpegURL", src: "http://cdn.angelthump.com/hls/" + channel + "_high/index.m3u8", label: "High", res: 4},
+      //{type:"application/x-mpegURL", src: "http://cdn.angelthump.com/hls/" + channel + "_medium/index.m3u8", label: "Medium", res: 3},
+      //{type:"application/x-mpegURL", src: "http://cdn.angelthump.com/hls/" + channel + "_low/index.m3u8", label: "Low", res: 2},
+      //{type:"application/x-mpegURL", src: "http://cdn.angelthump.com/hls/" + channel + "_mobile/index.m3u8", label: "Mobile", res: 1}
+      {type:"application/x-mpegURL", src: "http://cdn.angelthump.com/hls/" + channel + "/index.m3u8", label: "SOON ™ ", res: 1}
     ];
+
 
     // local storage makes everything a string, 
     // "10" explicity sets base-10 because memes
-    var userDefaultRes = parseInt(localStorage.getItem('userDefaultRes') || "1", 10);
+    var userDefaultRes = parseInt(localStorage.getItem('userDefaultRes') || "5", 10);
 
     var player = videojs('yee', {
     plugins: {
@@ -70,56 +73,62 @@
         }
       }
     }, function(){
-      player.updateSrc(sources);
-      player.autoplay(true);
+    	player.updateSrc(sources);
     })
 
+  
     player.on('resolutionchange', function(){
-      player.pause();
-      player.play();
       // save current resolution to localstorage
       localStorage.setItem('userDefaultRes', player.currentResolution().sources[0].res)
-    })
+    }) 
 
-    player.on('play', function() {
-      player.duration(Infinity);
-    })
+    player.on("pause", function () {
+      player.reset();
+      player.one("play", function () {
+        player.currentResolution(player.currentResolution().label);
+      });
+    }); 
 
-    player.poster('http://overpoweredstrim.me/default.jpg');
+	player.poster('http://angelthump.com/default_offline.jpg');
 
     player.logobrand({
-         image: "//overpoweredstrim.me/angelthump.png",
-         destination: "https://www.twitchalerts.com/donate/stioverpowered"});
+         image: "//angelthump.com/picdonate.png",
+         destination: "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=3VKPL7E8RSL38"});
   
     var requestTime = 1000;
     function retry() {
     setTimeout(function() {
-
-      if(player.currentResolution().label == 'US') {
-        player.currentResolution('US');
-       } else if (player.currentResolution.label == 'EU-LON') {
-        player.currentResolution('EU-LON');
-       } else {
-        player.currentResolution('EU-AMS');
-       }
+        player.currentResolution(player.currentResolution().label);
 
         if(requestTime < 16000) {
         requestTime = requestTime * 2;
         }
+        running = false;
 
     }, requestTime);
-  }
+    }
 
-
-    player.on('error', function(e) {
-      if(player.error().code == 3) {
-        player.error(null);
-        alert("Please use Firefox DEV Edition or use Chrome to view this stream");
-      }
-    })
-
+    var running = false;
     
 
+    player.on('error', function(e) {
+      if(player.error().code == 4 ) {
+        player.error(null);
+        //player.hasStarted(false);
+        if(!running) {
+        	retry();
+        	running = true;
+		    }
+      } else if (player.error().code == 2) {
+        player.error(null);
+        //player.hasStarted(false);
+        if(!running) {
+        	//retry();
+        	running = true;
+		    }
+      }
+    })
+    
     player.persistvolume({
        namespace: "YEE boi"
     });

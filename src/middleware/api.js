@@ -27,15 +27,15 @@ module.exports = function(app) {
         const username = users.data[0].username;
         // const title = users.data[0].title;
         Promise.all([
-          rp({uri:`http://www.overpoweredstrim.me/live?app=live&name=${username}`}),
-          rp({uri:`http://www.overpoweredstrim.me/viewers?app=live&name=${username}`}),
+          rp({uri:`http://api.angelthump.com/live?app=live&name=${username}`}),
+          rp({uri:`http://api.angelthump.com/viewers?app=live&name=${username}`}),
         ]).then( function (values){
           res.json({
             live: values[0].trim() === "1",
             title: `${username}'s stream`,
             // title: title,
             viewers: parseInt(values[1], 10),
-            thumbnail: `http://www.overpoweredstrim.me/thumbnail/${username}.jpg`,
+            thumbnail: `http://api.angelthump.com/thumbnail/${username}.jpg`,
           })
         }).catch(() => res.status(404).send('API Date Not Found'));
       }else{
