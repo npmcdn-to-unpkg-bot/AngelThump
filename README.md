@@ -1,15 +1,18 @@
-# Angelthump
+<p align="center">
+  <img src="http://i.imgur.com/OsIXQ4E.png">
+</p>
+<h1 align="center">AngelThump Live Streaming</h1>
 
 > 
 
 ## About
 
-An open source web framework for the AngelThump streaming platform. The web framework is feathersjs and it is located at www.feathersjs.com
+An open source web framework for the AngelThump streaming platform. The web framework is [feathersjs](www.feathersjs.com)
 
 ## Donations
 I do not make any profit off of this. All donations will go to server costs and it will be appericated.
 
-http://www.AngelThump.com/donate
+[Donate Here](http://www.AngelThump.com/donate)
 
 ## Getting Started
 
