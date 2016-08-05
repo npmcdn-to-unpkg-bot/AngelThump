@@ -5,7 +5,7 @@ const rp = require('request-promise');
 module.exports = function(app) {
   return function(req, res, next) {
     const requested_username = req.params.username;
-    console.log('requested_username!!:', requested_username);
+    console.log('api request for ', requested_username);
 
     app.service('users').find({
       query: { username: requested_username }
@@ -13,10 +13,10 @@ module.exports = function(app) {
 
     // Then we're good to check apis
     .then((users) => {
-      console.log(users.total, 'users found for that stream username', requested_username);
-      if (users.total > 0) {
-        const username = users.data[0].username;
-        // const title = users.data[0].title;
+      //console.log(users.total, 'users found for that stream username', requested_username);
+      if (users.length > 0) {
+        const username = users[0].username;
+        // const title = users[0].title;
         Promise.all([
           rp({uri:`http://api.angelthump.com/live?app=live&name=${username}`}),
           rp({uri:`http://api.angelthump.com/viewers?app=live&name=${username}`}),

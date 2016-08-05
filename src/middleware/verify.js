@@ -29,13 +29,8 @@ module.exports.initial = function(app) {
     })
     // Then we're good to stream
     .then((users) => {
-      console.log(users.total, 'users found for that stream key', streamkey);
-      if (users.total > 0) {
-        const username = users.data[0].username;
-        // res.status(200).send(req.method+' OK')
-        // const public_endpoint = `${'live/'}${users.data[0]._id}?streamkey=${streamkey}`;
-        // console.log('public_endpoint', public_endpoint);
-        // res.redirect(public_endpoint);
+      if (users.length > 0) {
+        const username = users[0].username;
         res.redirect(username)
       }else{
         res.status(404).send('No Users With That Key')
