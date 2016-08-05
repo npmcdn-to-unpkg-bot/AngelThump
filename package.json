@@ -1,12 +1,11 @@
 {
-  "name": "AngelTump",
+  "name": "AngelThump-Test",
   "description": "",
   "version": "0.0.0",
   "homepage": "",
   "main": "src/",
   "keywords": [
-    "live streaming",
-    "live video streaming"
+    "feathers"
   ],
   "license": "MIT",
   "repository": {},
@@ -23,30 +22,28 @@
     "mocha": "mocha test/ --recursive"
   },
   "dependencies": {
-    "body-parser": "^1.15.1",
+    "bcrypt": "^0.8.7",
+    "bcrypt-nodejs": "0.0.3",
+    "body-parser": "^1.15.2",
     "compression": "^1.6.2",
     "cors": "^2.7.1",
-    "ejs": "^2.4.2",
     "feathers": "^2.0.1",
-    "feathers-authentication": "^0.7.7",
+    "feathers-authentication": "^0.7.9",
     "feathers-configuration": "^0.2.3",
-    "feathers-errors": "^2.2.0",
+    "feathers-errors": "^2.4.0",
     "feathers-hooks": "^1.5.4",
-    "feathers-nedb": "^2.2.3",
-    "feathers-rest": "^1.4.1",
+    "feathers-mongoose": "^3.5.1",
+    "feathers-rest": "^1.4.3",
     "feathers-socketio": "^1.4.1",
-    "feathers-waterline": "^1.2.0",
-    "nedb": "^1.8.0",
+    "mongoose": "^4.5.8",
     "passport": "^0.3.2",
-    "request": "^2.72.0",
-    "request-promise": "^3.0.0",
     "serve-favicon": "^2.3.0",
-    "waterline": "^0.12.2",
+    "validator": "^5.5.0",
     "winston": "^2.2.0"
   },
   "devDependencies": {
     "jshint": "^2.9.2",
-    "mocha": "^2.5.3",
-    "request": "^2.72.0"
+    "mocha": "^3.0.1",
+    "request": "^2.74.0"
   }
 }

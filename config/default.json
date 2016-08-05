@@ -1,13 +1,15 @@
 {
   "host": "localhost",
-  "port": 3030,
-  "nedb": "../data/",
+  "port": 3031,
   "public": "../public/",
+  "mongodb": "mongodb://localhost:27017/feathers",
   "auth": {
+    "idField": "id",
     "token": {
-      "secret": "s0YEQrcpipB8Avv1Ed9TmgwPeYSsbmyn7T1QS0XG+ngJZAZr/XMMO46xbZMtngTtsNgELZYSBosqqSUFJHGs0w=="
+      "secret": "7OLVW9y4K/E3xEc1H615NxqKoSYGmdUHyWfggKYpKzjKlRrNmM+YHPD1d265f7yKc8HybwuQsBuhC09iIHSXsg=="
     },
-    "local": {},
-    "successRedirect": "/profile.html"
+    "local": {
+	"usernameField": "username"
+    }
   }
 }

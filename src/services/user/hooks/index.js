@@ -2,12 +2,9 @@
 
 const username = require('./username');
 
-const streamkey = require('./streamkey');
-
 const globalHooks = require('../../../hooks');
 const hooks = require('feathers-hooks');
 const auth = require('feathers-authentication').hooks;
-
 
 exports.before = {
   all: [],
@@ -20,48 +17,36 @@ exports.before = {
     auth.verifyToken(),
     auth.populateUser(),
     auth.restrictToAuthenticated(),
-    auth.restrictToOwner({ ownerField: '_id' })
+    auth.restrictToOwner({ ownerField: 'id' })
   ],
-  create: [
-    auth.hashPassword(), 
-    streamkey.initialize(), 
-    username()
-  ],
+  create: [auth.hashPassword(), username()],
   update: [
     auth.verifyToken(),
     auth.populateUser(),
     auth.restrictToAuthenticated(),
-    auth.restrictToOwner({ ownerField: '_id' }),
+    auth.restrictToOwner({ ownerField: 'id' }),
     username()
   ],
   patch: [
     auth.verifyToken(),
     auth.populateUser(),
     auth.restrictToAuthenticated(),
-    auth.restrictToOwner({ ownerField: '_id' }),
-    // todo: check if patch only sends partial data
-    // so we don't accidentally wipe usernames
-    // username()
+    auth.restrictToOwner({ ownerField: 'id' })
   ],
   remove: [
     auth.verifyToken(),
     auth.populateUser(),
     auth.restrictToAuthenticated(),
-    auth.restrictToOwner({ ownerField: '_id' })
+    auth.restrictToOwner({ ownerField: 'id' })
   ]
 };
-
-// TODO: remove stream key along with password
 
 exports.after = {
   all: [hooks.remove('password')],
   find: [],
   get: [],
   create: [],
-  update: [hooks.remove('streamkey')],
-  patch: [
-    
-    hooks.remove('streamkey')
-  ],
-  remove: [hooks.remove('streamkey')]
+  update: [],
+  patch: [],
+  remove: []
 };
