@@ -1,6 +1,6 @@
 /**
  * videojs-contrib-hls
- * @version 3.1.0
+ * @version 3.4.0
  * @copyright 2016 Brightcove, Inc
  * @license Apache-2.0
  */
@@ -87,49 +87,9 @@ exports["default"] = {
 };
 module.exports = exports["default"];
 },{}],3:[function(require,module,exports){
+(function (global){
 /**
- * @file decrypter/aes.js
- *
- * This file contains an adaptation of the AES decryption algorithm
- * from the Standford Javascript Cryptography Library. That work is
- * covered by the following copyright and permissions notice:
- *
- * Copyright 2009-2010 Emily Stark, Mike Hamburg, Dan Boneh.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
- *    disclaimer in the documentation and/or other materials provided
- *    with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * The views and conclusions contained in the software and documentation
- * are those of the authors and should not be interpreted as representing
- * official policies, either expressed or implied, of the authors.
- */
-
-/**
- * Expand the S-box tables.
- *
- * @private
+ * @file gap-skipper.js
  */
 'use strict';
 
@@ -138,497 +98,270 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-var precompute = function precompute() {
-  var tables = [[[], [], [], [], []], [[], [], [], [], []]];
-  var encTable = tables[0];
-  var decTable = tables[1];
-  var sbox = encTable[4];
-  var sboxInv = decTable[4];
-  var i = undefined;
-  var x = undefined;
-  var xInv = undefined;
-  var d = [];
-  var th = [];
-  var x2 = undefined;
-  var x4 = undefined;
-  var x8 = undefined;
-  var s = undefined;
-  var tEnc = undefined;
-  var tDec = undefined;
-
-  // Compute double and third tables
-  for (i = 0; i < 256; i++) {
-    th[(d[i] = i << 1 ^ (i >> 7) * 283) ^ i] = i;
-  }
-
-  for (x = xInv = 0; !sbox[x]; x ^= x2 || 1, xInv = th[xInv] || 1) {
-    // Compute sbox
-    s = xInv ^ xInv << 1 ^ xInv << 2 ^ xInv << 3 ^ xInv << 4;
-    s = s >> 8 ^ s & 255 ^ 99;
-    sbox[x] = s;
-    sboxInv[s] = x;
-
-    // Compute MixColumns
-    x8 = d[x4 = d[x2 = d[x]]];
-    tDec = x8 * 0x1010101 ^ x4 * 0x10001 ^ x2 * 0x101 ^ x * 0x1010100;
-    tEnc = d[s] * 0x101 ^ s * 0x1010100;
-
-    for (i = 0; i < 4; i++) {
-      encTable[i][x] = tEnc = tEnc << 24 ^ tEnc >>> 8;
-      decTable[i][s] = tDec = tDec << 24 ^ tDec >>> 8;
-    }
-  }
-
-  // Compactify. Considerable speedup on Firefox.
-  for (i = 0; i < 5; i++) {
-    encTable[i] = encTable[i].slice(0);
-    decTable[i] = decTable[i].slice(0);
-  }
-  return tables;
-};
-var aesTables = null;
-
-/**
- * Schedule out an AES key for both encryption and decryption. This
- * is a low-level class. Use a cipher mode to do bulk encryption.
- *
- * @class AES
- * @param key {Array} The key as an array of 4, 6 or 8 words.
- */
-
-var AES = (function () {
-  function AES(key) {
-    _classCallCheck(this, AES);
-
-    /**
-     * The expanded S-box and inverse S-box tables. These will be computed
-     * on the client so that we don't have to send them down the wire.
-     *
-     * There are two tables, _tables[0] is for encryption and
-     * _tables[1] is for decryption.
-     *
-     * The first 4 sub-tables are the expanded S-box with MixColumns. The
-     * last (_tables[01][4]) is the S-box itself.
-     *
-     * @private
-     */
-    // if we have yet to precompute the S-box tables
-    // do so now
-    if (!aesTables) {
-      aesTables = precompute();
-    }
-    // then make a copy of that object for use
-    this._tables = [[aesTables[0][0].slice(), aesTables[0][1].slice(), aesTables[0][2].slice(), aesTables[0][3].slice(), aesTables[0][4].slice()], [aesTables[1][0].slice(), aesTables[1][1].slice(), aesTables[1][2].slice(), aesTables[1][3].slice(), aesTables[1][4].slice()]];
-    var i = undefined;
-    var j = undefined;
-    var tmp = undefined;
-    var encKey = undefined;
-    var decKey = undefined;
-    var sbox = this._tables[0][4];
-    var decTable = this._tables[1];
-    var keyLen = key.length;
-    var rcon = 1;
-
-    if (keyLen !== 4 && keyLen !== 6 && keyLen !== 8) {
-      throw new Error('Invalid aes key size');
-    }
-
-    encKey = key.slice(0);
-    decKey = [];
-    this._key = [encKey, decKey];
-
-    // schedule encryption keys
-    for (i = keyLen; i < 4 * keyLen + 28; i++) {
-      tmp = encKey[i - 1];
-
-      // apply sbox
-      if (i % keyLen === 0 || keyLen === 8 && i % keyLen === 4) {
-        tmp = sbox[tmp >>> 24] << 24 ^ sbox[tmp >> 16 & 255] << 16 ^ sbox[tmp >> 8 & 255] << 8 ^ sbox[tmp & 255];
-
-        // shift rows and add rcon
-        if (i % keyLen === 0) {
-          tmp = tmp << 8 ^ tmp >>> 24 ^ rcon << 24;
-          rcon = rcon << 1 ^ (rcon >> 7) * 283;
-        }
-      }
-
-      encKey[i] = encKey[i - keyLen] ^ tmp;
-    }
-
-    // schedule decryption keys
-    for (j = 0; i; j++, i--) {
-      tmp = encKey[j & 3 ? i : i - 4];
-      if (i <= 4 || j < 4) {
-        decKey[j] = tmp;
-      } else {
-        decKey[j] = decTable[0][sbox[tmp >>> 24]] ^ decTable[1][sbox[tmp >> 16 & 255]] ^ decTable[2][sbox[tmp >> 8 & 255]] ^ decTable[3][sbox[tmp & 255]];
-      }
-    }
-  }
-
-  /**
-   * Decrypt 16 bytes, specified as four 32-bit words.
-   *
-   * @param {Number} encrypted0 the first word to decrypt
-   * @param {Number} encrypted1 the second word to decrypt
-   * @param {Number} encrypted2 the third word to decrypt
-   * @param {Number} encrypted3 the fourth word to decrypt
-   * @param {Int32Array} out the array to write the decrypted words
-   * into
-   * @param {Number} offset the offset into the output array to start
-   * writing results
-   * @return {Array} The plaintext.
-   */
-
-  _createClass(AES, [{
-    key: 'decrypt',
-    value: function decrypt(encrypted0, encrypted1, encrypted2, encrypted3, out, offset) {
-      var key = this._key[1];
-      // state variables a,b,c,d are loaded with pre-whitened data
-      var a = encrypted0 ^ key[0];
-      var b = encrypted3 ^ key[1];
-      var c = encrypted2 ^ key[2];
-      var d = encrypted1 ^ key[3];
-      var a2 = undefined;
-      var b2 = undefined;
-      var c2 = undefined;
-
-      // key.length === 2 ?
-      var nInnerRounds = key.length / 4 - 2;
-      var i = undefined;
-      var kIndex = 4;
-      var table = this._tables[1];
-
-      // load up the tables
-      var table0 = table[0];
-      var table1 = table[1];
-      var table2 = table[2];
-      var table3 = table[3];
-      var sbox = table[4];
-
-      // Inner rounds. Cribbed from OpenSSL.
-      for (i = 0; i < nInnerRounds; i++) {
-        a2 = table0[a >>> 24] ^ table1[b >> 16 & 255] ^ table2[c >> 8 & 255] ^ table3[d & 255] ^ key[kIndex];
-        b2 = table0[b >>> 24] ^ table1[c >> 16 & 255] ^ table2[d >> 8 & 255] ^ table3[a & 255] ^ key[kIndex + 1];
-        c2 = table0[c >>> 24] ^ table1[d >> 16 & 255] ^ table2[a >> 8 & 255] ^ table3[b & 255] ^ key[kIndex + 2];
-        d = table0[d >>> 24] ^ table1[a >> 16 & 255] ^ table2[b >> 8 & 255] ^ table3[c & 255] ^ key[kIndex + 3];
-        kIndex += 4;
-        a = a2;b = b2;c = c2;
-      }
-
-      // Last round.
-      for (i = 0; i < 4; i++) {
-        out[(3 & -i) + offset] = sbox[a >>> 24] << 24 ^ sbox[b >> 16 & 255] << 16 ^ sbox[c >> 8 & 255] << 8 ^ sbox[d & 255] ^ key[kIndex++];
-        a2 = a;a = b;b = c;c = d;d = a2;
-      }
-    }
-  }]);
-
-  return AES;
-})();
-
-exports['default'] = AES;
-module.exports = exports['default'];
-},{}],4:[function(require,module,exports){
-/**
- * @file decrypter/async-stream.js
- */
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+var _ranges = require('./ranges');
 
-var _stream = require('../stream');
+var _ranges2 = _interopRequireDefault(_ranges);
 
-var _stream2 = _interopRequireDefault(_stream);
+var _videoJs = (typeof window !== "undefined" ? window['videojs'] : typeof global !== "undefined" ? global['videojs'] : null);
+
+var _videoJs2 = _interopRequireDefault(_videoJs);
+
+// Set of events that reset the gap-skipper logic and clear the timeout
+var timerCancelEvents = ['seeking', 'seeked', 'pause', 'playing', 'error'];
 
 /**
- * A wrapper around the Stream class to use setTiemout
- * and run stream "jobs" Asynchronously
+ * The gap skipper object handles all scenarios
+ * where the player runs into the end of a buffered
+ * region and there is a buffered region ahead.
  *
- * @class AsyncStream
- * @extends Stream
+ * It then handles the skipping behavior by setting a
+ * timer to the size (in time) of the gap. This gives
+ * the hls segment fetcher time to close the gap and
+ * resume playing before the timer is triggered and
+ * the gap skipper simply seeks over the gap as a
+ * last resort to resume playback.
+ *
+ * @class GapSkipper
  */
 
-var AsyncStream = (function (_Stream) {
-  _inherits(AsyncStream, _Stream);
+var GapSkipper = (function () {
+  /**
+   * Represents a GapSKipper object.
+   * @constructor
+   * @param {object} options an object that includes the tech and settings
+   */
 
-  function AsyncStream() {
-    _classCallCheck(this, AsyncStream);
+  function GapSkipper(options) {
+    var _this = this;
 
-    _get(Object.getPrototypeOf(AsyncStream.prototype), 'constructor', this).call(this, _stream2['default']);
-    this.jobs = [];
-    this.delay = 1;
-    this.timeout_ = null;
+    _classCallCheck(this, GapSkipper);
+
+    this.tech_ = options.tech;
+    this.consecutiveUpdates = 0;
+    this.lastRecordedTime = null;
+    this.timer_ = null;
+
+    if (options.debug) {
+      this.logger_ = _videoJs2['default'].log.bind(_videoJs2['default'], 'gap-skipper ->');
+    }
+    this.logger_('initialize');
+
+    var waitingHandler = function waitingHandler() {
+      return _this.waiting_();
+    };
+    var timeupdateHandler = function timeupdateHandler() {
+      return _this.timeupdate_();
+    };
+    var cancelTimerHandler = function cancelTimerHandler() {
+      return _this.cancelTimer_();
+    };
+
+    this.tech_.on('waiting', waitingHandler);
+    this.tech_.on('timeupdate', timeupdateHandler);
+    this.tech_.on(timerCancelEvents, cancelTimerHandler);
+
+    // Define the dispose function to clean up our events
+    this.dispose = function () {
+      _this.logger_('dispose');
+      _this.tech_.off('waiting', waitingHandler);
+      _this.tech_.off('timeupdate', timeupdateHandler);
+      _this.tech_.off(timerCancelEvents, cancelTimerHandler);
+      _this.cancelTimer_();
+    };
   }
 
   /**
-   * process an async job
+   * Handler for `waiting` events from the player
    *
    * @private
    */
 
-  _createClass(AsyncStream, [{
-    key: 'processJob_',
-    value: function processJob_() {
-      this.jobs.shift()();
-      if (this.jobs.length) {
-        this.timeout_ = setTimeout(this.processJob_.bind(this), this.delay);
-      } else {
-        this.timeout_ = null;
+  _createClass(GapSkipper, [{
+    key: 'waiting_',
+    value: function waiting_() {
+      if (!this.tech_.seeking()) {
+        this.setTimer_();
       }
     }
 
     /**
-     * push a job into the stream
+     * The purpose of this function is to emulate the "waiting" event on
+     * browsers that do not emit it when they are waiting for more
+     * data to continue playback
      *
-     * @param {Function} job the job to push into the stream
-     */
-  }, {
-    key: 'push',
-    value: function push(job) {
-      this.jobs.push(job);
-      if (!this.timeout_) {
-        this.timeout_ = setTimeout(this.processJob_.bind(this), this.delay);
-      }
-    }
-  }]);
-
-  return AsyncStream;
-})(_stream2['default']);
-
-exports['default'] = AsyncStream;
-module.exports = exports['default'];
-},{"../stream":16}],5:[function(require,module,exports){
-/**
- * @file decrypter/decrypter.js
- *
- * An asynchronous implementation of AES-128 CBC decryption with
- * PKCS#7 padding.
- */
-
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-var _aes = require('./aes');
-
-var _aes2 = _interopRequireDefault(_aes);
-
-var _asyncStream = require('./async-stream');
-
-var _asyncStream2 = _interopRequireDefault(_asyncStream);
-
-var _pkcs7 = require('pkcs7');
-
-/**
- * Convert network-order (big-endian) bytes into their little-endian
- * representation.
- */
-var ntoh = function ntoh(word) {
-  return word << 24 | (word & 0xff00) << 8 | (word & 0xff0000) >> 8 | word >>> 24;
-};
-
-/**
- * Decrypt bytes using AES-128 with CBC and PKCS#7 padding.
- *
- * @param {Uint8Array} encrypted the encrypted bytes
- * @param {Uint32Array} key the bytes of the decryption key
- * @param {Uint32Array} initVector the initialization vector (IV) to
- * use for the first round of CBC.
- * @return {Uint8Array} the decrypted bytes
- *
- * @see http://en.wikipedia.org/wiki/Advanced_Encryption_Standard
- * @see http://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_.28CBC.29
- * @see https://tools.ietf.org/html/rfc2315
- */
-var decrypt = function decrypt(encrypted, key, initVector) {
-  // word-level access to the encrypted bytes
-  var encrypted32 = new Int32Array(encrypted.buffer, encrypted.byteOffset, encrypted.byteLength >> 2);
-
-  var decipher = new _aes2['default'](Array.prototype.slice.call(key));
-
-  // byte and word-level access for the decrypted output
-  var decrypted = new Uint8Array(encrypted.byteLength);
-  var decrypted32 = new Int32Array(decrypted.buffer);
-
-  // temporary variables for working with the IV, encrypted, and
-  // decrypted data
-  var init0 = undefined;
-  var init1 = undefined;
-  var init2 = undefined;
-  var init3 = undefined;
-  var encrypted0 = undefined;
-  var encrypted1 = undefined;
-  var encrypted2 = undefined;
-  var encrypted3 = undefined;
-
-  // iteration variable
-  var wordIx = undefined;
-
-  // pull out the words of the IV to ensure we don't modify the
-  // passed-in reference and easier access
-  init0 = initVector[0];
-  init1 = initVector[1];
-  init2 = initVector[2];
-  init3 = initVector[3];
-
-  // decrypt four word sequences, applying cipher-block chaining (CBC)
-  // to each decrypted block
-  for (wordIx = 0; wordIx < encrypted32.length; wordIx += 4) {
-    // convert big-endian (network order) words into little-endian
-    // (javascript order)
-    encrypted0 = ntoh(encrypted32[wordIx]);
-    encrypted1 = ntoh(encrypted32[wordIx + 1]);
-    encrypted2 = ntoh(encrypted32[wordIx + 2]);
-    encrypted3 = ntoh(encrypted32[wordIx + 3]);
-
-    // decrypt the block
-    decipher.decrypt(encrypted0, encrypted1, encrypted2, encrypted3, decrypted32, wordIx);
-
-    // XOR with the IV, and restore network byte-order to obtain the
-    // plaintext
-    decrypted32[wordIx] = ntoh(decrypted32[wordIx] ^ init0);
-    decrypted32[wordIx + 1] = ntoh(decrypted32[wordIx + 1] ^ init1);
-    decrypted32[wordIx + 2] = ntoh(decrypted32[wordIx + 2] ^ init2);
-    decrypted32[wordIx + 3] = ntoh(decrypted32[wordIx + 3] ^ init3);
-
-    // setup the IV for the next round
-    init0 = encrypted0;
-    init1 = encrypted1;
-    init2 = encrypted2;
-    init3 = encrypted3;
-  }
-
-  return decrypted;
-};
-
-exports.decrypt = decrypt;
-/**
- * The `Decrypter` class that manages decryption of AES
- * data through `AsyncStream` objects and the `decrypt`
- * function
- *
- * @param {Uint8Array} encrypted the encrypted bytes
- * @param {Uint32Array} key the bytes of the decryption key
- * @param {Uint32Array} initVector the initialization vector (IV) to
- * @param {Function} done the function to run when done
- * @class Decrypter
- */
-
-var Decrypter = (function () {
-  function Decrypter(encrypted, key, initVector, done) {
-    _classCallCheck(this, Decrypter);
-
-    var step = Decrypter.STEP;
-    var encrypted32 = new Int32Array(encrypted.buffer);
-    var decrypted = new Uint8Array(encrypted.byteLength);
-    var i = 0;
-
-    this.asyncStream_ = new _asyncStream2['default']();
-
-    // split up the encryption job and do the individual chunks asynchronously
-    this.asyncStream_.push(this.decryptChunk_(encrypted32.subarray(i, i + step), key, initVector, decrypted));
-    for (i = step; i < encrypted32.length; i += step) {
-      initVector = new Uint32Array([ntoh(encrypted32[i - 4]), ntoh(encrypted32[i - 3]), ntoh(encrypted32[i - 2]), ntoh(encrypted32[i - 1])]);
-      this.asyncStream_.push(this.decryptChunk_(encrypted32.subarray(i, i + step), key, initVector, decrypted));
-    }
-    // invoke the done() callback when everything is finished
-    this.asyncStream_.push(function () {
-      // remove pkcs#7 padding from the decrypted bytes
-      done(null, (0, _pkcs7.unpad)(decrypted));
-    });
-  }
-
-  /**
-   * a getter for step the maximum number of bytes to process at one time
-   *
-   * @return {Number} the value of step 32000
-   */
-
-  _createClass(Decrypter, [{
-    key: 'decryptChunk_',
-
-    /**
      * @private
      */
-    value: function decryptChunk_(encrypted, key, initVector, decrypted) {
-      return function () {
-        var bytes = decrypt(encrypted, key, initVector);
+  }, {
+    key: 'timeupdate_',
+    value: function timeupdate_() {
+      if (this.tech_.paused() || this.tech_.seeking()) {
+        return;
+      }
 
-        decrypted.set(bytes, encrypted.byteOffset);
-      };
+      var currentTime = this.tech_.currentTime();
+
+      if (this.consecutiveUpdates === 5 && currentTime === this.lastRecordedTime) {
+        this.consecutiveUpdates++;
+        this.waiting_();
+      } else if (currentTime === this.lastRecordedTime) {
+        this.consecutiveUpdates++;
+      } else {
+        this.consecutiveUpdates = 0;
+        this.lastRecordedTime = currentTime;
+      }
     }
-  }], [{
-    key: 'STEP',
-    get: function get() {
-      // 4 * 8000;
-      return 32000;
+
+    /**
+     * Cancels any pending timers and resets the 'timeupdate' mechanism
+     * designed to detect that we are stalled
+     *
+     * @private
+     */
+  }, {
+    key: 'cancelTimer_',
+    value: function cancelTimer_() {
+      this.consecutiveUpdates = 0;
+
+      if (this.timer_) {
+        this.logger_('cancelTimer_');
+        clearTimeout(this.timer_);
+      }
+
+      this.timer_ = null;
     }
+
+    /**
+     * Timer callback. If playback still has not proceeded, then we seek
+     * to the start of the next buffered region.
+     *
+     * @private
+     */
+  }, {
+    key: 'skipTheGap_',
+    value: function skipTheGap_(scheduledCurrentTime) {
+      var buffered = this.tech_.buffered();
+      var currentTime = this.tech_.currentTime();
+      var nextRange = _ranges2['default'].findNextRange(buffered, currentTime);
+
+      this.consecutiveUpdates = 0;
+      this.timer_ = null;
+
+      if (nextRange.length === 0 || currentTime !== scheduledCurrentTime) {
+        return;
+      }
+
+      this.logger_('skipTheGap_:', 'currentTime:', currentTime, 'scheduled currentTime:', scheduledCurrentTime, 'nextRange start:', nextRange.start(0));
+
+      // only seek if we still have not played
+      this.tech_.setCurrentTime(nextRange.start(0) + _ranges2['default'].TIME_FUDGE_FACTOR);
+    }
+  }, {
+    key: 'gapFromVideoUnderflow_',
+    value: function gapFromVideoUnderflow_(buffered, currentTime) {
+      // At least in Chrome, if there is a gap in the video buffer, the audio will continue
+      // playing for ~3 seconds after the video gap starts. This is done to account for
+      // video buffer underflow/underrun (note that this is not done when there is audio
+      // buffer underflow/underrun -- in that case the video will stop as soon as it
+      // encounters the gap, as audio stalls are more noticeable/jarring to a user than
+      // video stalls). The player's time will reflect the playthrough of audio, so the
+      // time will appear as if we are in a buffered region, even if we are stuck in a
+      // "gap."
+      //
+      // Example:
+      // video buffer:   0 => 10.1, 10.2 => 20
+      // audio buffer:   0 => 20
+      // overall buffer: 0 => 10.1, 10.2 => 20
+      // current time: 13
+      //
+      // Chrome's video froze at 10 seconds, where the video buffer encountered the gap,
+      // however, the audio continued playing until it reached ~3 seconds past the gap
+      // (13 seconds), at which point it stops as well. Since current time is past the
+      // gap, findNextRange will return no ranges.
+      //
+      // To check for this issue, we see if there is a small gap that is somewhere within
+      // a 3 second range (3 seconds +/- 1 second) back from our current time.
+      var gaps = _ranges2['default'].findGaps(buffered);
+
+      for (var i = 0; i < gaps.length; i++) {
+        var start = gaps.start(i);
+        var end = gaps.end(i);
+
+        // gap is small
+        if (end - start < 1 &&
+        // gap is 3 seconds back +/- 1 second
+        currentTime - start < 4 && currentTime - end > 2) {
+          return {
+            start: start,
+            end: end
+          };
+        }
+      }
+
+      return null;
+    }
+
+    /**
+     * Set a timer to skip the unbuffered region.
+     *
+     * @private
+     */
+  }, {
+    key: 'setTimer_',
+    value: function setTimer_() {
+      var buffered = this.tech_.buffered();
+      var currentTime = this.tech_.currentTime();
+      var nextRange = _ranges2['default'].findNextRange(buffered, currentTime);
+
+      if (this.timer_ !== null) {
+        return;
+      }
+
+      if (nextRange.length === 0) {
+        // Even if there is no available next range, there is still a possibility we are
+        // stuck in a gap due to video underflow.
+        var gap = this.gapFromVideoUnderflow_(buffered, currentTime);
+
+        if (gap) {
+          this.logger_('setTimer_:', 'Encountered a gap in video', 'from: ', gap.start, 'to: ', gap.end, 'seeking to current time: ', currentTime);
+          // Even though the video underflowed and was stuck in a gap, the audio overplayed
+          // the gap, leading currentTime into a buffered range. Seeking to currentTime
+          // allows the video to catch up to the audio position without losing any audio
+          // (only suffering ~3 seconds of frozen video and a pause in audio playback).
+          this.tech_.setCurrentTime(currentTime);
+        }
+        return;
+      }
+
+      var difference = nextRange.start(0) - currentTime;
+
+      this.logger_('setTimer_:', 'stopped at:', currentTime, 'setting timer for:', difference, 'seeking to:', nextRange.start(0));
+
+      this.timer_ = setTimeout(this.skipTheGap_.bind(this), difference * 1000, currentTime);
+    }
+
+    /**
+     * A debugging logger noop that is set to console.log only if debugging
+     * is enabled globally
+     *
+     * @private
+     */
+  }, {
+    key: 'logger_',
+    value: function logger_() {}
   }]);
 
-  return Decrypter;
+  return GapSkipper;
 })();
 
-exports.Decrypter = Decrypter;
-exports['default'] = {
-  Decrypter: Decrypter,
-  decrypt: decrypt
-};
-},{"./aes":3,"./async-stream":4,"pkcs7":62}],6:[function(require,module,exports){
-/**
- * @file decrypter/index.js
- *
- * Index module to easily import the primary components of AES-128
- * decryption. Like this:
- *
- * ```js
- * import {Decrypter, decrypt, AsyncStream} from './src/decrypter';
- * ```
- */
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
-
-var _decrypter = require('./decrypter');
-
-var _asyncStream = require('./async-stream');
-
-var _asyncStream2 = _interopRequireDefault(_asyncStream);
-
-exports['default'] = {
-  decrypt: _decrypter.decrypt,
-  Decrypter: _decrypter.Decrypter,
-  AsyncStream: _asyncStream2['default']
-};
+exports['default'] = GapSkipper;
 module.exports = exports['default'];
-},{"./async-stream":4,"./decrypter":5}],7:[function(require,module,exports){
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./ranges":8}],4:[function(require,module,exports){
 (function (global){
 /**
  * @file hls-audio-track.js
@@ -770,7 +503,7 @@ var HlsAudioTrack = (function (_AudioTrack) {
 exports['default'] = HlsAudioTrack;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./playlist-loader":9}],8:[function(require,module,exports){
+},{"./playlist-loader":6}],5:[function(require,module,exports){
 (function (global){
 /**
  * @file master-playlist-controller.js
@@ -810,6 +543,10 @@ var _videoJs2 = _interopRequireDefault(_videoJs);
 var _hlsAudioTrack = require('./hls-audio-track');
 
 var _hlsAudioTrack2 = _interopRequireDefault(_hlsAudioTrack);
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
 
 // 5 minute blacklist
 var BLACKLIST_DURATION = 5 * 60 * 1000;
@@ -858,6 +595,7 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
     var tech = _ref.tech;
     var bandwidth = _ref.bandwidth;
     var externHls = _ref.externHls;
+    var useCueTags = _ref.useCueTags;
 
     _classCallCheck(this, MasterPlaylistController);
 
@@ -869,7 +607,18 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
     this.tech_ = tech;
     this.hls_ = tech.hls;
     this.mode_ = mode;
+    this.useCueTags_ = useCueTags;
+    if (this.useCueTags_) {
+      this.cueTagsTrack_ = this.tech_.addTextTrack('metadata', 'hls-segment-metadata');
+      this.cueTagsTrack_.inBandMetadataTrackDispatchType = '';
+      this.tech_.textTracks().addTrack_(this.cueTagsTrack_);
+    }
+
     this.audioTracks_ = [];
+    this.requestOptions_ = {
+      withCredentials: this.withCredentials,
+      timeout: null
+    };
 
     this.mediaSource = new _videoJs2['default'].MediaSource({ mode: mode });
     this.mediaSource.on('audioinfo', function (e) {
@@ -882,7 +631,6 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
       hls: this.hls_,
       mediaSource: this.mediaSource,
       currentTime: this.tech_.currentTime.bind(this.tech_),
-      withCredentials: this.withCredentials,
       seekable: function seekable() {
         return _this.seekable();
       },
@@ -911,11 +659,14 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
 
     this.masterPlaylistLoader_.on('loadedmetadata', function () {
       var media = _this.masterPlaylistLoader_.media();
+      var requestTimeout = _this.masterPlaylistLoader_.targetDuration * 1.5 * 1000;
+
+      _this.requestOptions_.timeout = requestTimeout;
 
       // if this isn't a live video and preload permits, start
       // downloading segments
       if (media.endList && _this.tech_.preload() !== 'none') {
-        _this.mainSegmentLoader_.playlist(media);
+        _this.mainSegmentLoader_.playlist(media, _this.requestOptions_);
         _this.mainSegmentLoader_.expired(_this.masterPlaylistLoader_.expired_);
         _this.mainSegmentLoader_.load();
       }
@@ -939,11 +690,13 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
         return;
       }
 
+      _this.updateCues_(updatedPlaylist);
+
       // TODO: Create a new event on the PlaylistLoader that signals
       // that the segments have changed in some way and use that to
       // update the SegmentLoader instead of doing it twice here and
       // on `mediachange`
-      _this.mainSegmentLoader_.playlist(updatedPlaylist);
+      _this.mainSegmentLoader_.playlist(updatedPlaylist, _this.requestOptions_);
       _this.mainSegmentLoader_.expired(_this.masterPlaylistLoader_.expired_);
       _this.updateDuration();
 
@@ -964,14 +717,23 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
 
     this.masterPlaylistLoader_.on('mediachange', function () {
       var media = _this.masterPlaylistLoader_.media();
+      var requestTimeout = _this.masterPlaylistLoader_.targetDuration * 1.5 * 1000;
 
       _this.mainSegmentLoader_.abort();
+
+      // If we don't have any more available playlists, we don't want to
+      // timeout the request.
+      if (_this.masterPlaylistLoader_.isLowestEnabledRendition_()) {
+        _this.requestOptions_.timeout = 0;
+      } else {
+        _this.requestOptions_.timeout = requestTimeout;
+      }
 
       // TODO: Create a new event on the PlaylistLoader that signals
       // that the segments have changed in some way and use that to
       // update the SegmentLoader instead of doing it twice here and
       // on `loadedplaylist`
-      _this.mainSegmentLoader_.playlist(media);
+      _this.mainSegmentLoader_.playlist(media, _this.requestOptions_);
       _this.mainSegmentLoader_.expired(_this.masterPlaylistLoader_.expired_);
       _this.mainSegmentLoader_.load();
 
@@ -1170,7 +932,7 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
         var media = _this2.audioPlaylistLoader_.media();
         /* eslint-enable no-shadow */
 
-        _this2.audioSegmentLoader_.playlist(media);
+        _this2.audioSegmentLoader_.playlist(media, _this2.requestOptions_);
         _this2.addMimeType_(_this2.audioSegmentLoader_, 'mp4a.40.2', media);
 
         // if the video is already playing, or if this isn't a live video and preload
@@ -1198,7 +960,7 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
           return;
         }
 
-        _this2.audioSegmentLoader_.playlist(updatedPlaylist);
+        _this2.audioSegmentLoader_.playlist(updatedPlaylist, _this2.requestOptions_);
       });
 
       this.audioPlaylistLoader_.on('error', function () {
@@ -1655,6 +1417,45 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
         }
       });
     }
+  }, {
+    key: 'updateCues_',
+    value: function updateCues_(media) {
+      if (!this.useCueTags_ || !media.segments) {
+        return;
+      }
+
+      while (this.cueTagsTrack_.cues.length) {
+        this.cueTagsTrack_.removeCue(this.cueTagsTrack_.cues[0]);
+      }
+
+      var mediaTime = 0;
+
+      for (var i = 0; i < media.segments.length; i++) {
+        var segment = media.segments[i];
+
+        if ('cueOut' in segment || 'cueOutCont' in segment || 'cueIn' in segment) {
+          var cueJson = {};
+
+          if ('cueOut' in segment) {
+            cueJson.cueOut = segment.cueOut;
+          }
+          if ('cueOutCont' in segment) {
+            cueJson.cueOutCont = segment.cueOutCont;
+          }
+          if ('cueIn' in segment) {
+            cueJson.cueIn = segment.cueIn;
+          }
+
+          // Use a short duration for the cue point, as it should trigger for a segment
+          // transition (in this case, defined as the beginning of the segment that the tag
+          // precedes), but keep it for a minimum of 0.5 seconds to remain usable (won't
+          // lose it as an active cue by the time a user retrieves the active cues).
+          this.cueTagsTrack_.addCue(new _globalWindow2['default'].VTTCue(mediaTime, mediaTime + 0.5, JSON.stringify(cueJson)));
+        }
+
+        mediaTime += segment.duration;
+      }
+    }
   }]);
 
   return MasterPlaylistController;
@@ -1663,7 +1464,7 @@ var MasterPlaylistController = (function (_videojs$EventTarget) {
 exports['default'] = MasterPlaylistController;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./hls-audio-track":7,"./playlist-loader":9,"./ranges":11,"./segment-loader":14}],9:[function(require,module,exports){
+},{"./hls-audio-track":4,"./playlist-loader":6,"./ranges":8,"./segment-loader":11,"global/window":25}],6:[function(require,module,exports){
 (function (global){
 /**
  * @file playlist-loader.js
@@ -1693,6 +1494,10 @@ var _stream2 = _interopRequireDefault(_stream);
 var _m3u8Parser = require('m3u8-parser');
 
 var _m3u8Parser2 = _interopRequireDefault(_m3u8Parser);
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
 
 /**
   * Returns a new array of segments that is the result of merging
@@ -1856,6 +1661,7 @@ var PlaylistLoader = function PlaylistLoader(srcUrl, hls, withCredentials) {
     // merge this playlist into the master
     update = updateMaster(loader.master, parser.manifest);
     refreshDelay = (parser.manifest.targetDuration || 10) * 1000;
+    loader.targetDuration = parser.manifest.targetDuration;
     if (update) {
       loader.master = update;
       loader.updateMediaPlaylist_(parser.manifest);
@@ -1867,8 +1673,8 @@ var PlaylistLoader = function PlaylistLoader(srcUrl, hls, withCredentials) {
 
     // refresh live playlists after a target duration passes
     if (!loader.media().endList) {
-      window.clearTimeout(mediaUpdateTimeout);
-      mediaUpdateTimeout = window.setTimeout(function () {
+      _globalWindow2['default'].clearTimeout(mediaUpdateTimeout);
+      mediaUpdateTimeout = _globalWindow2['default'].setTimeout(function () {
         loader.trigger('mediaupdatetimeout');
       }, refreshDelay);
     }
@@ -1892,7 +1698,7 @@ var PlaylistLoader = function PlaylistLoader(srcUrl, hls, withCredentials) {
    */
   loader.dispose = function () {
     loader.stopRequest();
-    window.clearTimeout(mediaUpdateTimeout);
+    _globalWindow2['default'].clearTimeout(mediaUpdateTimeout);
     dispose.call(this);
   };
 
@@ -1904,6 +1710,42 @@ var PlaylistLoader = function PlaylistLoader(srcUrl, hls, withCredentials) {
       oldRequest.onreadystatechange = null;
       oldRequest.abort();
     }
+  };
+
+  /**
+   * Returns the number of enabled playlists on the master playlist object
+   *
+   * @return {Number} number of eneabled playlists
+   */
+  loader.enabledPlaylists_ = function () {
+    return loader.master.playlists.filter(function (element, index, array) {
+      return !element.excludeUntil || element.excludeUntil <= Date.now();
+    }).length;
+  };
+
+  /**
+   * Returns whether the current playlist is the lowest rendition
+   *
+   * @return {Boolean} true if on lowest rendition
+   */
+  loader.isLowestEnabledRendition_ = function () {
+    if (!loader.media()) {
+      return false;
+    }
+
+    var currentPlaylist = loader.media().attributes.BANDWIDTH;
+
+    return !(loader.master.playlists.filter(function (element, index, array) {
+      var enabled = typeof element.excludeUntil === 'undefined' || element.excludeUntil <= Date.now();
+
+      if (!enabled) {
+        return false;
+      }
+
+      var item = element.attributes.BANDWIDTH;
+
+      return item <= currentPlaylist;
+    }).length > 1);
   };
 
   /**
@@ -2051,7 +1893,7 @@ var PlaylistLoader = function PlaylistLoader(srcUrl, hls, withCredentials) {
    */
   loader.pause = function () {
     loader.stopRequest();
-    window.clearTimeout(mediaUpdateTimeout);
+    _globalWindow2['default'].clearTimeout(mediaUpdateTimeout);
   };
 
   /**
@@ -2146,7 +1988,7 @@ var PlaylistLoader = function PlaylistLoader(srcUrl, hls, withCredentials) {
       // loaded a media playlist
       // infer a master playlist if none was previously requested
       loader.master = {
-        uri: window.location.href,
+        uri: _globalWindow2['default'].location.href,
         playlists: [{
           uri: srcUrl
         }]
@@ -2233,7 +2075,7 @@ PlaylistLoader.prototype.updateMediaPlaylist_ = function (update) {
 exports['default'] = PlaylistLoader;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./resolve-url":13,"./stream":16,"m3u8-parser":56}],10:[function(require,module,exports){
+},{"./resolve-url":10,"./stream":13,"global/window":25,"m3u8-parser":62}],7:[function(require,module,exports){
 (function (global){
 /**
  * @file playlist.js
@@ -2246,7 +2088,13 @@ Object.defineProperty(exports, '__esModule', {
   value: true
 });
 
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
 var _videoJs = (typeof window !== "undefined" ? window['videojs'] : typeof global !== "undefined" ? global['videojs'] : null);
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
 
 var Playlist = {
   /**
@@ -2418,7 +2266,7 @@ var duration = function duration(playlist, endSequence, expired) {
 
     // duration should be Infinity for live playlists
     if (!playlist.endList) {
-      return window.Infinity;
+      return _globalWindow2['default'].Infinity;
     }
   }
 
@@ -2500,6 +2348,10 @@ var getMediaIndexForTime_ = function getMediaIndexForTime_(playlist, time, expir
   // when the requested position is earlier than the current set of
   // segments, return the earliest segment index
   if (time < 0) {
+    return 0;
+  }
+
+  if (time === 0 && !expired) {
     return 0;
   }
 
@@ -2600,7 +2452,7 @@ Playlist.getMediaIndexForTime_ = getMediaIndexForTime_;
 // exports
 exports['default'] = Playlist;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],11:[function(require,module,exports){
+},{"global/window":25}],8:[function(require,module,exports){
 (function (global){
 /**
  * ranges
@@ -2671,8 +2523,7 @@ var findRange = function findRange(buffered, time) {
 };
 
 /**
- * Returns the TimeRanges that begin at or later than the specified
- * time.
+ * Returns the TimeRanges that begin later than the specified time.
  * @param {TimeRanges} timeRanges - the TimeRanges object to query
  * @param {number} time - the time to filter on.
  * @returns {TimeRanges} a new TimeRanges object.
@@ -2681,6 +2532,28 @@ var findNextRange = function findNextRange(timeRanges, time) {
   return filterRanges(timeRanges, function (start) {
     return start - TIME_FUDGE_FACTOR >= time;
   });
+};
+
+/**
+ * Returns gaps within a list of TimeRanges
+ * @param {TimeRanges} buffered - the TimeRanges object
+ * @return {TimeRanges} a TimeRanges object of gaps
+ */
+var findGaps = function findGaps(buffered) {
+  if (buffered.length < 2) {
+    return _videoJs2['default'].createTimeRanges();
+  }
+
+  var ranges = [];
+
+  for (var i = 1; i < buffered.length; i++) {
+    var start = buffered.end(i - 1);
+    var end = buffered.start(i);
+
+    ranges.push([start, end]);
+  }
+
+  return _videoJs2['default'].createTimeRanges(ranges);
 };
 
 /**
@@ -2903,13 +2776,14 @@ var getSegmentBufferedPercent = function getSegmentBufferedPercent(startOfSegmen
 exports['default'] = {
   findRange: findRange,
   findNextRange: findNextRange,
+  findGaps: findGaps,
   findSoleUncommonTimeRangesEnd: findSoleUncommonTimeRangesEnd,
   getSegmentBufferedPercent: getSegmentBufferedPercent,
   TIME_FUDGE_FACTOR: TIME_FUDGE_FACTOR
 };
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],12:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 /**
  * Enable/disable playlist function. It is intended to have the first two
  * arguments partially-applied in order to create the final per-playlist
@@ -3011,7 +2885,7 @@ var renditionSelectionMixin = function renditionSelectionMixin(hlsHandler) {
 
 exports['default'] = renditionSelectionMixin;
 module.exports = exports['default'];
-},{}],13:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 /**
  * @file resolve-url.js
  */
@@ -3068,7 +2942,7 @@ var resolveUrl = function resolveUrl(basePath, path) {
 
 exports['default'] = resolveUrl;
 module.exports = exports['default'];
-},{"global/document":19}],14:[function(require,module,exports){
+},{"global/document":24}],11:[function(require,module,exports){
 (function (global){
 /**
  * @file segment-loader.js
@@ -3081,7 +2955,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x2, _x3, _x4) { var _again = true; _function: while (_again) { var object = _x2, property = _x3, receiver = _x4; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x2 = parent; _x3 = property; _x4 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -3103,11 +2977,15 @@ var _sourceUpdater = require('./source-updater');
 
 var _sourceUpdater2 = _interopRequireDefault(_sourceUpdater);
 
-var _decrypter = require('./decrypter');
+var _aesDecrypter = require('aes-decrypter');
 
 var _config = require('./config');
 
 var _config2 = _interopRequireDefault(_config);
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
 
 // in ms
 var CHECK_BUFFER_DELAY = 500;
@@ -3243,7 +3121,6 @@ var SegmentLoader = (function (_videojs$EventTarget) {
     this.seeking_ = settings.seeking;
     this.setCurrentTime_ = settings.setCurrentTime;
     this.mediaSource_ = settings.mediaSource;
-    this.withCredentials_ = settings.withCredentials;
     this.checkBufferTimeout_ = null;
     this.error_ = void 0;
     this.expired_ = 0;
@@ -3253,6 +3130,7 @@ var SegmentLoader = (function (_videojs$EventTarget) {
     this.pendingSegment_ = null;
     this.sourceUpdater_ = null;
     this.hls_ = settings.hls;
+    this.xhrOptions_ = null;
   }
 
   /**
@@ -3353,7 +3231,11 @@ var SegmentLoader = (function (_videojs$EventTarget) {
   }, {
     key: 'playlist',
     value: function playlist(media) {
+      var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
       this.playlist_ = media;
+      this.xhrOptions_ = options;
+
       // if we were unpaused but waiting for a playlist, start
       // buffering now
       if (this.sourceUpdater_ && media && this.state === 'INIT' && !this.paused()) {
@@ -3372,7 +3254,7 @@ var SegmentLoader = (function (_videojs$EventTarget) {
     key: 'pause',
     value: function pause() {
       if (this.checkBufferTimeout_) {
-        window.clearTimeout(this.checkBufferTimeout_);
+        _globalWindow2['default'].clearTimeout(this.checkBufferTimeout_);
 
         this.checkBufferTimeout_ = null;
       }
@@ -3436,10 +3318,10 @@ var SegmentLoader = (function (_videojs$EventTarget) {
       }
 
       if (this.checkBufferTimeout_) {
-        window.clearTimeout(this.checkBufferTimeout_);
+        _globalWindow2['default'].clearTimeout(this.checkBufferTimeout_);
       }
 
-      this.checkBufferTimeout_ = window.setTimeout(this.monitorBuffer_.bind(this), CHECK_BUFFER_DELAY);
+      this.checkBufferTimeout_ = _globalWindow2['default'].setTimeout(this.monitorBuffer_.bind(this), CHECK_BUFFER_DELAY);
     }
 
     /**
@@ -3613,7 +3495,6 @@ var SegmentLoader = (function (_videojs$EventTarget) {
     key: 'loadSegment_',
     value: function loadSegment_(segmentInfo) {
       var segment = undefined;
-      var requestTimeout = undefined;
       var keyXhr = undefined;
       var segmentXhr = undefined;
       var seekable = this.seekable_();
@@ -3639,27 +3520,25 @@ var SegmentLoader = (function (_videojs$EventTarget) {
       }
 
       segment = segmentInfo.playlist.segments[segmentInfo.mediaIndex];
-      // Set xhr timeout to 150% of the segment duration to allow us
-      // some time to switch renditions in the event of a catastrophic
-      // decrease in network performance or a server issue.
-      requestTimeout = segment.duration * 1.5 * 1000;
 
       if (segment.key) {
-        keyXhr = this.hls_.xhr({
+        var keyRequestOptions = _videoJs2['default'].mergeOptions(this.xhrOptions_, {
           uri: segment.key.resolvedUri,
-          responseType: 'arraybuffer',
-          withCredentials: this.withCredentials_,
-          timeout: requestTimeout
-        }, this.handleResponse_.bind(this));
+          responseType: 'arraybuffer'
+        });
+
+        keyXhr = this.hls_.xhr(keyRequestOptions, this.handleResponse_.bind(this));
       }
+
       this.pendingSegment_ = segmentInfo;
-      segmentXhr = this.hls_.xhr({
+
+      var segmentRequestOptions = _videoJs2['default'].mergeOptions(this.xhrOptions_, {
         uri: segmentInfo.uri,
         responseType: 'arraybuffer',
-        withCredentials: this.withCredentials_,
-        timeout: requestTimeout,
         headers: segmentXhrHeaders(segment)
-      }, this.handleResponse_.bind(this));
+      });
+
+      segmentXhr = this.hls_.xhr(segmentRequestOptions, this.handleResponse_.bind(this));
 
       this.xhr_ = {
         keyXhr: keyXhr,
@@ -3816,7 +3695,7 @@ var SegmentLoader = (function (_videojs$EventTarget) {
         // this is an encrypted segment
         // incrementally decrypt the segment
         /* eslint-disable no-new, handle-callback-err */
-        new _decrypter.Decrypter(segmentInfo.encryptedBytes, segment.key.bytes, segment.key.iv, (function (err, bytes) {
+        new _aesDecrypter.Decrypter(segmentInfo.encryptedBytes, segment.key.bytes, segment.key.iv, (function (err, bytes) {
           // err always null
           segmentInfo.bytes = bytes;
           this.handleSegment_();
@@ -3986,7 +3865,7 @@ var SegmentLoader = (function (_videojs$EventTarget) {
 exports['default'] = SegmentLoader;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./config":2,"./decrypter":6,"./playlist":10,"./ranges":11,"./source-updater":15}],15:[function(require,module,exports){
+},{"./config":2,"./playlist":7,"./ranges":8,"./source-updater":12,"aes-decrypter":18,"global/window":25}],12:[function(require,module,exports){
 (function (global){
 /**
  * @file source-updater.js
@@ -4215,7 +4094,7 @@ var SourceUpdater = (function () {
 exports['default'] = SourceUpdater;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],16:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /**
  * @file stream.js
  */
@@ -4346,7 +4225,7 @@ var Stream = (function () {
 
 exports['default'] = Stream;
 module.exports = exports['default'];
-},{}],17:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 (function (global){
 /**
  * @file xhr.js
@@ -4423,9 +4302,674 @@ var xhrFactory = function xhrFactory() {
 exports['default'] = xhrFactory;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],18:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
+/**
+ * @file aes.js
+ *
+ * This file contains an adaptation of the AES decryption algorithm
+ * from the Standford Javascript Cryptography Library. That work is
+ * covered by the following copyright and permissions notice:
+ *
+ * Copyright 2009-2010 Emily Stark, Mike Hamburg, Dan Boneh.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials provided
+ *    with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation
+ * are those of the authors and should not be interpreted as representing
+ * official policies, either expressed or implied, of the authors.
+ */
 
-},{}],19:[function(require,module,exports){
+/**
+ * Expand the S-box tables.
+ *
+ * @private
+ */
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+var precompute = function precompute() {
+  var tables = [[[], [], [], [], []], [[], [], [], [], []]];
+  var encTable = tables[0];
+  var decTable = tables[1];
+  var sbox = encTable[4];
+  var sboxInv = decTable[4];
+  var i = undefined;
+  var x = undefined;
+  var xInv = undefined;
+  var d = [];
+  var th = [];
+  var x2 = undefined;
+  var x4 = undefined;
+  var x8 = undefined;
+  var s = undefined;
+  var tEnc = undefined;
+  var tDec = undefined;
+
+  // Compute double and third tables
+  for (i = 0; i < 256; i++) {
+    th[(d[i] = i << 1 ^ (i >> 7) * 283) ^ i] = i;
+  }
+
+  for (x = xInv = 0; !sbox[x]; x ^= x2 || 1, xInv = th[xInv] || 1) {
+    // Compute sbox
+    s = xInv ^ xInv << 1 ^ xInv << 2 ^ xInv << 3 ^ xInv << 4;
+    s = s >> 8 ^ s & 255 ^ 99;
+    sbox[x] = s;
+    sboxInv[s] = x;
+
+    // Compute MixColumns
+    x8 = d[x4 = d[x2 = d[x]]];
+    tDec = x8 * 0x1010101 ^ x4 * 0x10001 ^ x2 * 0x101 ^ x * 0x1010100;
+    tEnc = d[s] * 0x101 ^ s * 0x1010100;
+
+    for (i = 0; i < 4; i++) {
+      encTable[i][x] = tEnc = tEnc << 24 ^ tEnc >>> 8;
+      decTable[i][s] = tDec = tDec << 24 ^ tDec >>> 8;
+    }
+  }
+
+  // Compactify. Considerable speedup on Firefox.
+  for (i = 0; i < 5; i++) {
+    encTable[i] = encTable[i].slice(0);
+    decTable[i] = decTable[i].slice(0);
+  }
+  return tables;
+};
+var aesTables = null;
+
+/**
+ * Schedule out an AES key for both encryption and decryption. This
+ * is a low-level class. Use a cipher mode to do bulk encryption.
+ *
+ * @class AES
+ * @param key {Array} The key as an array of 4, 6 or 8 words.
+ */
+
+var AES = (function () {
+  function AES(key) {
+    _classCallCheck(this, AES);
+
+    /**
+     * The expanded S-box and inverse S-box tables. These will be computed
+     * on the client so that we don't have to send them down the wire.
+     *
+     * There are two tables, _tables[0] is for encryption and
+     * _tables[1] is for decryption.
+     *
+     * The first 4 sub-tables are the expanded S-box with MixColumns. The
+     * last (_tables[01][4]) is the S-box itself.
+     *
+     * @private
+     */
+    // if we have yet to precompute the S-box tables
+    // do so now
+    if (!aesTables) {
+      aesTables = precompute();
+    }
+    // then make a copy of that object for use
+    this._tables = [[aesTables[0][0].slice(), aesTables[0][1].slice(), aesTables[0][2].slice(), aesTables[0][3].slice(), aesTables[0][4].slice()], [aesTables[1][0].slice(), aesTables[1][1].slice(), aesTables[1][2].slice(), aesTables[1][3].slice(), aesTables[1][4].slice()]];
+    var i = undefined;
+    var j = undefined;
+    var tmp = undefined;
+    var encKey = undefined;
+    var decKey = undefined;
+    var sbox = this._tables[0][4];
+    var decTable = this._tables[1];
+    var keyLen = key.length;
+    var rcon = 1;
+
+    if (keyLen !== 4 && keyLen !== 6 && keyLen !== 8) {
+      throw new Error('Invalid aes key size');
+    }
+
+    encKey = key.slice(0);
+    decKey = [];
+    this._key = [encKey, decKey];
+
+    // schedule encryption keys
+    for (i = keyLen; i < 4 * keyLen + 28; i++) {
+      tmp = encKey[i - 1];
+
+      // apply sbox
+      if (i % keyLen === 0 || keyLen === 8 && i % keyLen === 4) {
+        tmp = sbox[tmp >>> 24] << 24 ^ sbox[tmp >> 16 & 255] << 16 ^ sbox[tmp >> 8 & 255] << 8 ^ sbox[tmp & 255];
+
+        // shift rows and add rcon
+        if (i % keyLen === 0) {
+          tmp = tmp << 8 ^ tmp >>> 24 ^ rcon << 24;
+          rcon = rcon << 1 ^ (rcon >> 7) * 283;
+        }
+      }
+
+      encKey[i] = encKey[i - keyLen] ^ tmp;
+    }
+
+    // schedule decryption keys
+    for (j = 0; i; j++, i--) {
+      tmp = encKey[j & 3 ? i : i - 4];
+      if (i <= 4 || j < 4) {
+        decKey[j] = tmp;
+      } else {
+        decKey[j] = decTable[0][sbox[tmp >>> 24]] ^ decTable[1][sbox[tmp >> 16 & 255]] ^ decTable[2][sbox[tmp >> 8 & 255]] ^ decTable[3][sbox[tmp & 255]];
+      }
+    }
+  }
+
+  /**
+   * Decrypt 16 bytes, specified as four 32-bit words.
+   *
+   * @param {Number} encrypted0 the first word to decrypt
+   * @param {Number} encrypted1 the second word to decrypt
+   * @param {Number} encrypted2 the third word to decrypt
+   * @param {Number} encrypted3 the fourth word to decrypt
+   * @param {Int32Array} out the array to write the decrypted words
+   * into
+   * @param {Number} offset the offset into the output array to start
+   * writing results
+   * @return {Array} The plaintext.
+   */
+
+  _createClass(AES, [{
+    key: 'decrypt',
+    value: function decrypt(encrypted0, encrypted1, encrypted2, encrypted3, out, offset) {
+      var key = this._key[1];
+      // state variables a,b,c,d are loaded with pre-whitened data
+      var a = encrypted0 ^ key[0];
+      var b = encrypted3 ^ key[1];
+      var c = encrypted2 ^ key[2];
+      var d = encrypted1 ^ key[3];
+      var a2 = undefined;
+      var b2 = undefined;
+      var c2 = undefined;
+
+      // key.length === 2 ?
+      var nInnerRounds = key.length / 4 - 2;
+      var i = undefined;
+      var kIndex = 4;
+      var table = this._tables[1];
+
+      // load up the tables
+      var table0 = table[0];
+      var table1 = table[1];
+      var table2 = table[2];
+      var table3 = table[3];
+      var sbox = table[4];
+
+      // Inner rounds. Cribbed from OpenSSL.
+      for (i = 0; i < nInnerRounds; i++) {
+        a2 = table0[a >>> 24] ^ table1[b >> 16 & 255] ^ table2[c >> 8 & 255] ^ table3[d & 255] ^ key[kIndex];
+        b2 = table0[b >>> 24] ^ table1[c >> 16 & 255] ^ table2[d >> 8 & 255] ^ table3[a & 255] ^ key[kIndex + 1];
+        c2 = table0[c >>> 24] ^ table1[d >> 16 & 255] ^ table2[a >> 8 & 255] ^ table3[b & 255] ^ key[kIndex + 2];
+        d = table0[d >>> 24] ^ table1[a >> 16 & 255] ^ table2[b >> 8 & 255] ^ table3[c & 255] ^ key[kIndex + 3];
+        kIndex += 4;
+        a = a2;b = b2;c = c2;
+      }
+
+      // Last round.
+      for (i = 0; i < 4; i++) {
+        out[(3 & -i) + offset] = sbox[a >>> 24] << 24 ^ sbox[b >> 16 & 255] << 16 ^ sbox[c >> 8 & 255] << 8 ^ sbox[d & 255] ^ key[kIndex++];
+        a2 = a;a = b;b = c;c = d;d = a2;
+      }
+    }
+  }]);
+
+  return AES;
+})();
+
+exports['default'] = AES;
+module.exports = exports['default'];
+},{}],16:[function(require,module,exports){
+/**
+ * @file async-stream.js
+ */
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var _stream = require('./stream');
+
+var _stream2 = _interopRequireDefault(_stream);
+
+/**
+ * A wrapper around the Stream class to use setTiemout
+ * and run stream "jobs" Asynchronously
+ *
+ * @class AsyncStream
+ * @extends Stream
+ */
+
+var AsyncStream = (function (_Stream) {
+  _inherits(AsyncStream, _Stream);
+
+  function AsyncStream() {
+    _classCallCheck(this, AsyncStream);
+
+    _get(Object.getPrototypeOf(AsyncStream.prototype), 'constructor', this).call(this, _stream2['default']);
+    this.jobs = [];
+    this.delay = 1;
+    this.timeout_ = null;
+  }
+
+  /**
+   * process an async job
+   *
+   * @private
+   */
+
+  _createClass(AsyncStream, [{
+    key: 'processJob_',
+    value: function processJob_() {
+      this.jobs.shift()();
+      if (this.jobs.length) {
+        this.timeout_ = setTimeout(this.processJob_.bind(this), this.delay);
+      } else {
+        this.timeout_ = null;
+      }
+    }
+
+    /**
+     * push a job into the stream
+     *
+     * @param {Function} job the job to push into the stream
+     */
+  }, {
+    key: 'push',
+    value: function push(job) {
+      this.jobs.push(job);
+      if (!this.timeout_) {
+        this.timeout_ = setTimeout(this.processJob_.bind(this), this.delay);
+      }
+    }
+  }]);
+
+  return AsyncStream;
+})(_stream2['default']);
+
+exports['default'] = AsyncStream;
+module.exports = exports['default'];
+},{"./stream":19}],17:[function(require,module,exports){
+/**
+ * @file decrypter.js
+ *
+ * An asynchronous implementation of AES-128 CBC decryption with
+ * PKCS#7 padding.
+ */
+
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+var _aes = require('./aes');
+
+var _aes2 = _interopRequireDefault(_aes);
+
+var _asyncStream = require('./async-stream');
+
+var _asyncStream2 = _interopRequireDefault(_asyncStream);
+
+var _pkcs7 = require('pkcs7');
+
+/**
+ * Convert network-order (big-endian) bytes into their little-endian
+ * representation.
+ */
+var ntoh = function ntoh(word) {
+  return word << 24 | (word & 0xff00) << 8 | (word & 0xff0000) >> 8 | word >>> 24;
+};
+
+/**
+ * Decrypt bytes using AES-128 with CBC and PKCS#7 padding.
+ *
+ * @param {Uint8Array} encrypted the encrypted bytes
+ * @param {Uint32Array} key the bytes of the decryption key
+ * @param {Uint32Array} initVector the initialization vector (IV) to
+ * use for the first round of CBC.
+ * @return {Uint8Array} the decrypted bytes
+ *
+ * @see http://en.wikipedia.org/wiki/Advanced_Encryption_Standard
+ * @see http://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_.28CBC.29
+ * @see https://tools.ietf.org/html/rfc2315
+ */
+var decrypt = function decrypt(encrypted, key, initVector) {
+  // word-level access to the encrypted bytes
+  var encrypted32 = new Int32Array(encrypted.buffer, encrypted.byteOffset, encrypted.byteLength >> 2);
+
+  var decipher = new _aes2['default'](Array.prototype.slice.call(key));
+
+  // byte and word-level access for the decrypted output
+  var decrypted = new Uint8Array(encrypted.byteLength);
+  var decrypted32 = new Int32Array(decrypted.buffer);
+
+  // temporary variables for working with the IV, encrypted, and
+  // decrypted data
+  var init0 = undefined;
+  var init1 = undefined;
+  var init2 = undefined;
+  var init3 = undefined;
+  var encrypted0 = undefined;
+  var encrypted1 = undefined;
+  var encrypted2 = undefined;
+  var encrypted3 = undefined;
+
+  // iteration variable
+  var wordIx = undefined;
+
+  // pull out the words of the IV to ensure we don't modify the
+  // passed-in reference and easier access
+  init0 = initVector[0];
+  init1 = initVector[1];
+  init2 = initVector[2];
+  init3 = initVector[3];
+
+  // decrypt four word sequences, applying cipher-block chaining (CBC)
+  // to each decrypted block
+  for (wordIx = 0; wordIx < encrypted32.length; wordIx += 4) {
+    // convert big-endian (network order) words into little-endian
+    // (javascript order)
+    encrypted0 = ntoh(encrypted32[wordIx]);
+    encrypted1 = ntoh(encrypted32[wordIx + 1]);
+    encrypted2 = ntoh(encrypted32[wordIx + 2]);
+    encrypted3 = ntoh(encrypted32[wordIx + 3]);
+
+    // decrypt the block
+    decipher.decrypt(encrypted0, encrypted1, encrypted2, encrypted3, decrypted32, wordIx);
+
+    // XOR with the IV, and restore network byte-order to obtain the
+    // plaintext
+    decrypted32[wordIx] = ntoh(decrypted32[wordIx] ^ init0);
+    decrypted32[wordIx + 1] = ntoh(decrypted32[wordIx + 1] ^ init1);
+    decrypted32[wordIx + 2] = ntoh(decrypted32[wordIx + 2] ^ init2);
+    decrypted32[wordIx + 3] = ntoh(decrypted32[wordIx + 3] ^ init3);
+
+    // setup the IV for the next round
+    init0 = encrypted0;
+    init1 = encrypted1;
+    init2 = encrypted2;
+    init3 = encrypted3;
+  }
+
+  return decrypted;
+};
+
+exports.decrypt = decrypt;
+/**
+ * The `Decrypter` class that manages decryption of AES
+ * data through `AsyncStream` objects and the `decrypt`
+ * function
+ *
+ * @param {Uint8Array} encrypted the encrypted bytes
+ * @param {Uint32Array} key the bytes of the decryption key
+ * @param {Uint32Array} initVector the initialization vector (IV) to
+ * @param {Function} done the function to run when done
+ * @class Decrypter
+ */
+
+var Decrypter = (function () {
+  function Decrypter(encrypted, key, initVector, done) {
+    _classCallCheck(this, Decrypter);
+
+    var step = Decrypter.STEP;
+    var encrypted32 = new Int32Array(encrypted.buffer);
+    var decrypted = new Uint8Array(encrypted.byteLength);
+    var i = 0;
+
+    this.asyncStream_ = new _asyncStream2['default']();
+
+    // split up the encryption job and do the individual chunks asynchronously
+    this.asyncStream_.push(this.decryptChunk_(encrypted32.subarray(i, i + step), key, initVector, decrypted));
+    for (i = step; i < encrypted32.length; i += step) {
+      initVector = new Uint32Array([ntoh(encrypted32[i - 4]), ntoh(encrypted32[i - 3]), ntoh(encrypted32[i - 2]), ntoh(encrypted32[i - 1])]);
+      this.asyncStream_.push(this.decryptChunk_(encrypted32.subarray(i, i + step), key, initVector, decrypted));
+    }
+    // invoke the done() callback when everything is finished
+    this.asyncStream_.push(function () {
+      // remove pkcs#7 padding from the decrypted bytes
+      done(null, (0, _pkcs7.unpad)(decrypted));
+    });
+  }
+
+  /**
+   * a getter for step the maximum number of bytes to process at one time
+   *
+   * @return {Number} the value of step 32000
+   */
+
+  _createClass(Decrypter, [{
+    key: 'decryptChunk_',
+
+    /**
+     * @private
+     */
+    value: function decryptChunk_(encrypted, key, initVector, decrypted) {
+      return function () {
+        var bytes = decrypt(encrypted, key, initVector);
+
+        decrypted.set(bytes, encrypted.byteOffset);
+      };
+    }
+  }], [{
+    key: 'STEP',
+    get: function get() {
+      // 4 * 8000;
+      return 32000;
+    }
+  }]);
+
+  return Decrypter;
+})();
+
+exports.Decrypter = Decrypter;
+exports['default'] = {
+  Decrypter: Decrypter,
+  decrypt: decrypt
+};
+},{"./aes":15,"./async-stream":16,"pkcs7":21}],18:[function(require,module,exports){
+/**
+ * @file index.js
+ *
+ * Index module to easily import the primary components of AES-128
+ * decryption. Like this:
+ *
+ * ```js
+ * import {Decrypter, decrypt, AsyncStream} from 'aes-decrypter';
+ * ```
+ */
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+var _decrypter = require('./decrypter');
+
+var _asyncStream = require('./async-stream');
+
+var _asyncStream2 = _interopRequireDefault(_asyncStream);
+
+exports['default'] = {
+  decrypt: _decrypter.decrypt,
+  Decrypter: _decrypter.Decrypter,
+  AsyncStream: _asyncStream2['default']
+};
+module.exports = exports['default'];
+},{"./async-stream":16,"./decrypter":17}],19:[function(require,module,exports){
+arguments[4][13][0].apply(exports,arguments)
+},{"dup":13}],20:[function(require,module,exports){
+/*
+ * pkcs7.pad
+ * https://github.com/brightcove/pkcs7
+ *
+ * Copyright (c) 2014 Brightcove
+ * Licensed under the apache2 license.
+ */
+
+'use strict';
+
+var PADDING;
+
+/**
+ * Returns a new Uint8Array that is padded with PKCS#7 padding.
+ * @param plaintext {Uint8Array} the input bytes before encryption
+ * @return {Uint8Array} the padded bytes
+ * @see http://tools.ietf.org/html/rfc5652
+ */
+module.exports = function pad(plaintext) {
+  var padding = PADDING[(plaintext.byteLength % 16) || 0],
+      result = new Uint8Array(plaintext.byteLength + padding.length);
+  result.set(plaintext);
+  result.set(padding, plaintext.byteLength);
+  return result;
+};
+
+// pre-define the padding values
+PADDING = [
+  [16, 16, 16, 16,
+   16, 16, 16, 16,
+   16, 16, 16, 16,
+   16, 16, 16, 16],
+
+  [15, 15, 15, 15,
+   15, 15, 15, 15,
+   15, 15, 15, 15,
+   15, 15, 15],
+
+  [14, 14, 14, 14,
+   14, 14, 14, 14,
+   14, 14, 14, 14,
+   14, 14],
+
+  [13, 13, 13, 13,
+   13, 13, 13, 13,
+   13, 13, 13, 13,
+   13],
+
+  [12, 12, 12, 12,
+   12, 12, 12, 12,
+   12, 12, 12, 12],
+
+  [11, 11, 11, 11,
+   11, 11, 11, 11,
+   11, 11, 11],
+
+  [10, 10, 10, 10,
+   10, 10, 10, 10,
+   10, 10],
+
+  [9, 9, 9, 9,
+   9, 9, 9, 9,
+   9],
+
+  [8, 8, 8, 8,
+   8, 8, 8, 8],
+
+  [7, 7, 7, 7,
+   7, 7, 7],
+
+  [6, 6, 6, 6,
+   6, 6],
+
+  [5, 5, 5, 5,
+   5],
+
+  [4, 4, 4, 4],
+
+  [3, 3, 3],
+
+  [2, 2],
+
+  [1]
+];
+
+},{}],21:[function(require,module,exports){
+/*
+ * pkcs7
+ * https://github.com/brightcove/pkcs7
+ *
+ * Copyright (c) 2014 Brightcove
+ * Licensed under the apache2 license.
+ */
+
+'use strict';
+
+exports.pad = require('./pad.js');
+exports.unpad = require('./unpad.js');
+
+},{"./pad.js":20,"./unpad.js":22}],22:[function(require,module,exports){
+/*
+ * pkcs7.unpad
+ * https://github.com/brightcove/pkcs7
+ *
+ * Copyright (c) 2014 Brightcove
+ * Licensed under the apache2 license.
+ */
+
+'use strict';
+
+/**
+ * Returns the subarray of a Uint8Array without PKCS#7 padding.
+ * @param padded {Uint8Array} unencrypted bytes that have been padded
+ * @return {Uint8Array} the unpadded bytes
+ * @see http://tools.ietf.org/html/rfc5652
+ */
+module.exports = function unpad(padded) {
+  return padded.subarray(0, padded.byteLength - padded[padded.byteLength - 1]);
+};
+
+},{}],23:[function(require,module,exports){
+
+},{}],24:[function(require,module,exports){
 (function (global){
 var topLevel = typeof global !== 'undefined' ? global :
     typeof window !== 'undefined' ? window : {}
@@ -4444,7 +4988,20 @@ if (typeof document !== 'undefined') {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"min-document":18}],20:[function(require,module,exports){
+},{"min-document":23}],25:[function(require,module,exports){
+(function (global){
+if (typeof window !== "undefined") {
+    module.exports = window;
+} else if (typeof global !== "undefined") {
+    module.exports = global;
+} else if (typeof self !== "undefined"){
+    module.exports = self;
+} else {
+    module.exports = {};
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],26:[function(require,module,exports){
 /** Used as the `TypeError` message for "Functions" methods. */
 var FUNC_ERROR_TEXT = 'Expected a function';
 
@@ -4504,7 +5061,7 @@ function restParam(func, start) {
 
 module.exports = restParam;
 
-},{}],21:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 /**
  * Copies the values of `source` to `array`.
  *
@@ -4526,7 +5083,7 @@ function arrayCopy(source, array) {
 
 module.exports = arrayCopy;
 
-},{}],22:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 /**
  * A specialized version of `_.forEach` for arrays without support for callback
  * shorthands and `this` binding.
@@ -4550,7 +5107,7 @@ function arrayEach(array, iteratee) {
 
 module.exports = arrayEach;
 
-},{}],23:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 /**
  * Copies properties of `source` to `object`.
  *
@@ -4575,7 +5132,7 @@ function baseCopy(source, props, object) {
 
 module.exports = baseCopy;
 
-},{}],24:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 var createBaseFor = require('./createBaseFor');
 
 /**
@@ -4594,7 +5151,7 @@ var baseFor = createBaseFor();
 
 module.exports = baseFor;
 
-},{"./createBaseFor":31}],25:[function(require,module,exports){
+},{"./createBaseFor":37}],31:[function(require,module,exports){
 var baseFor = require('./baseFor'),
     keysIn = require('../object/keysIn');
 
@@ -4613,7 +5170,7 @@ function baseForIn(object, iteratee) {
 
 module.exports = baseForIn;
 
-},{"../object/keysIn":52,"./baseFor":24}],26:[function(require,module,exports){
+},{"../object/keysIn":58,"./baseFor":30}],32:[function(require,module,exports){
 var arrayEach = require('./arrayEach'),
     baseMergeDeep = require('./baseMergeDeep'),
     isArray = require('../lang/isArray'),
@@ -4671,7 +5228,7 @@ function baseMerge(object, source, customizer, stackA, stackB) {
 
 module.exports = baseMerge;
 
-},{"../lang/isArray":43,"../lang/isObject":46,"../lang/isTypedArray":49,"../object/keys":51,"./arrayEach":22,"./baseMergeDeep":27,"./isArrayLike":34,"./isObjectLike":39}],27:[function(require,module,exports){
+},{"../lang/isArray":49,"../lang/isObject":52,"../lang/isTypedArray":55,"../object/keys":57,"./arrayEach":28,"./baseMergeDeep":33,"./isArrayLike":40,"./isObjectLike":45}],33:[function(require,module,exports){
 var arrayCopy = require('./arrayCopy'),
     isArguments = require('../lang/isArguments'),
     isArray = require('../lang/isArray'),
@@ -4740,7 +5297,7 @@ function baseMergeDeep(object, source, key, mergeFunc, customizer, stackA, stack
 
 module.exports = baseMergeDeep;
 
-},{"../lang/isArguments":42,"../lang/isArray":43,"../lang/isPlainObject":47,"../lang/isTypedArray":49,"../lang/toPlainObject":50,"./arrayCopy":21,"./isArrayLike":34}],28:[function(require,module,exports){
+},{"../lang/isArguments":48,"../lang/isArray":49,"../lang/isPlainObject":53,"../lang/isTypedArray":55,"../lang/toPlainObject":56,"./arrayCopy":27,"./isArrayLike":40}],34:[function(require,module,exports){
 var toObject = require('./toObject');
 
 /**
@@ -4758,7 +5315,7 @@ function baseProperty(key) {
 
 module.exports = baseProperty;
 
-},{"./toObject":41}],29:[function(require,module,exports){
+},{"./toObject":47}],35:[function(require,module,exports){
 var identity = require('../utility/identity');
 
 /**
@@ -4799,7 +5356,7 @@ function bindCallback(func, thisArg, argCount) {
 
 module.exports = bindCallback;
 
-},{"../utility/identity":55}],30:[function(require,module,exports){
+},{"../utility/identity":61}],36:[function(require,module,exports){
 var bindCallback = require('./bindCallback'),
     isIterateeCall = require('./isIterateeCall'),
     restParam = require('../function/restParam');
@@ -4842,7 +5399,7 @@ function createAssigner(assigner) {
 
 module.exports = createAssigner;
 
-},{"../function/restParam":20,"./bindCallback":29,"./isIterateeCall":37}],31:[function(require,module,exports){
+},{"../function/restParam":26,"./bindCallback":35,"./isIterateeCall":43}],37:[function(require,module,exports){
 var toObject = require('./toObject');
 
 /**
@@ -4871,7 +5428,7 @@ function createBaseFor(fromRight) {
 
 module.exports = createBaseFor;
 
-},{"./toObject":41}],32:[function(require,module,exports){
+},{"./toObject":47}],38:[function(require,module,exports){
 var baseProperty = require('./baseProperty');
 
 /**
@@ -4888,7 +5445,7 @@ var getLength = baseProperty('length');
 
 module.exports = getLength;
 
-},{"./baseProperty":28}],33:[function(require,module,exports){
+},{"./baseProperty":34}],39:[function(require,module,exports){
 var isNative = require('../lang/isNative');
 
 /**
@@ -4906,7 +5463,7 @@ function getNative(object, key) {
 
 module.exports = getNative;
 
-},{"../lang/isNative":45}],34:[function(require,module,exports){
+},{"../lang/isNative":51}],40:[function(require,module,exports){
 var getLength = require('./getLength'),
     isLength = require('./isLength');
 
@@ -4923,7 +5480,7 @@ function isArrayLike(value) {
 
 module.exports = isArrayLike;
 
-},{"./getLength":32,"./isLength":38}],35:[function(require,module,exports){
+},{"./getLength":38,"./isLength":44}],41:[function(require,module,exports){
 /**
  * Checks if `value` is a host object in IE < 9.
  *
@@ -4946,7 +5503,7 @@ var isHostObject = (function() {
 
 module.exports = isHostObject;
 
-},{}],36:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 /** Used to detect unsigned integer values. */
 var reIsUint = /^\d+$/;
 
@@ -4972,7 +5529,7 @@ function isIndex(value, length) {
 
 module.exports = isIndex;
 
-},{}],37:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 var isArrayLike = require('./isArrayLike'),
     isIndex = require('./isIndex'),
     isObject = require('../lang/isObject');
@@ -5002,7 +5559,7 @@ function isIterateeCall(value, index, object) {
 
 module.exports = isIterateeCall;
 
-},{"../lang/isObject":46,"./isArrayLike":34,"./isIndex":36}],38:[function(require,module,exports){
+},{"../lang/isObject":52,"./isArrayLike":40,"./isIndex":42}],44:[function(require,module,exports){
 /**
  * Used as the [maximum length](http://ecma-international.org/ecma-262/6.0/#sec-number.max_safe_integer)
  * of an array-like value.
@@ -5024,7 +5581,7 @@ function isLength(value) {
 
 module.exports = isLength;
 
-},{}],39:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 /**
  * Checks if `value` is object-like.
  *
@@ -5038,7 +5595,7 @@ function isObjectLike(value) {
 
 module.exports = isObjectLike;
 
-},{}],40:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 var isArguments = require('../lang/isArguments'),
     isArray = require('../lang/isArray'),
     isIndex = require('./isIndex'),
@@ -5082,7 +5639,7 @@ function shimKeys(object) {
 
 module.exports = shimKeys;
 
-},{"../lang/isArguments":42,"../lang/isArray":43,"../lang/isString":48,"../object/keysIn":52,"./isIndex":36,"./isLength":38}],41:[function(require,module,exports){
+},{"../lang/isArguments":48,"../lang/isArray":49,"../lang/isString":54,"../object/keysIn":58,"./isIndex":42,"./isLength":44}],47:[function(require,module,exports){
 var isObject = require('../lang/isObject'),
     isString = require('../lang/isString'),
     support = require('../support');
@@ -5110,7 +5667,7 @@ function toObject(value) {
 
 module.exports = toObject;
 
-},{"../lang/isObject":46,"../lang/isString":48,"../support":54}],42:[function(require,module,exports){
+},{"../lang/isObject":52,"../lang/isString":54,"../support":60}],48:[function(require,module,exports){
 var isArrayLike = require('../internal/isArrayLike'),
     isObjectLike = require('../internal/isObjectLike');
 
@@ -5146,7 +5703,7 @@ function isArguments(value) {
 
 module.exports = isArguments;
 
-},{"../internal/isArrayLike":34,"../internal/isObjectLike":39}],43:[function(require,module,exports){
+},{"../internal/isArrayLike":40,"../internal/isObjectLike":45}],49:[function(require,module,exports){
 var getNative = require('../internal/getNative'),
     isLength = require('../internal/isLength'),
     isObjectLike = require('../internal/isObjectLike');
@@ -5188,7 +5745,7 @@ var isArray = nativeIsArray || function(value) {
 
 module.exports = isArray;
 
-},{"../internal/getNative":33,"../internal/isLength":38,"../internal/isObjectLike":39}],44:[function(require,module,exports){
+},{"../internal/getNative":39,"../internal/isLength":44,"../internal/isObjectLike":45}],50:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /** `Object#toString` result references. */
@@ -5228,7 +5785,7 @@ function isFunction(value) {
 
 module.exports = isFunction;
 
-},{"./isObject":46}],45:[function(require,module,exports){
+},{"./isObject":52}],51:[function(require,module,exports){
 var isFunction = require('./isFunction'),
     isHostObject = require('../internal/isHostObject'),
     isObjectLike = require('../internal/isObjectLike');
@@ -5279,7 +5836,7 @@ function isNative(value) {
 
 module.exports = isNative;
 
-},{"../internal/isHostObject":35,"../internal/isObjectLike":39,"./isFunction":44}],46:[function(require,module,exports){
+},{"../internal/isHostObject":41,"../internal/isObjectLike":45,"./isFunction":50}],52:[function(require,module,exports){
 /**
  * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
  * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
@@ -5309,7 +5866,7 @@ function isObject(value) {
 
 module.exports = isObject;
 
-},{}],47:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 var baseForIn = require('../internal/baseForIn'),
     isArguments = require('./isArguments'),
     isHostObject = require('../internal/isHostObject'),
@@ -5391,7 +5948,7 @@ function isPlainObject(value) {
 
 module.exports = isPlainObject;
 
-},{"../internal/baseForIn":25,"../internal/isHostObject":35,"../internal/isObjectLike":39,"../support":54,"./isArguments":42}],48:[function(require,module,exports){
+},{"../internal/baseForIn":31,"../internal/isHostObject":41,"../internal/isObjectLike":45,"../support":60,"./isArguments":48}],54:[function(require,module,exports){
 var isObjectLike = require('../internal/isObjectLike');
 
 /** `Object#toString` result references. */
@@ -5428,7 +5985,7 @@ function isString(value) {
 
 module.exports = isString;
 
-},{"../internal/isObjectLike":39}],49:[function(require,module,exports){
+},{"../internal/isObjectLike":45}],55:[function(require,module,exports){
 var isLength = require('../internal/isLength'),
     isObjectLike = require('../internal/isObjectLike');
 
@@ -5504,7 +6061,7 @@ function isTypedArray(value) {
 
 module.exports = isTypedArray;
 
-},{"../internal/isLength":38,"../internal/isObjectLike":39}],50:[function(require,module,exports){
+},{"../internal/isLength":44,"../internal/isObjectLike":45}],56:[function(require,module,exports){
 var baseCopy = require('../internal/baseCopy'),
     keysIn = require('../object/keysIn');
 
@@ -5537,7 +6094,7 @@ function toPlainObject(value) {
 
 module.exports = toPlainObject;
 
-},{"../internal/baseCopy":23,"../object/keysIn":52}],51:[function(require,module,exports){
+},{"../internal/baseCopy":29,"../object/keysIn":58}],57:[function(require,module,exports){
 var getNative = require('../internal/getNative'),
     isArrayLike = require('../internal/isArrayLike'),
     isObject = require('../lang/isObject'),
@@ -5585,7 +6142,7 @@ var keys = !nativeKeys ? shimKeys : function(object) {
 
 module.exports = keys;
 
-},{"../internal/getNative":33,"../internal/isArrayLike":34,"../internal/shimKeys":40,"../lang/isObject":46,"../support":54}],52:[function(require,module,exports){
+},{"../internal/getNative":39,"../internal/isArrayLike":40,"../internal/shimKeys":46,"../lang/isObject":52,"../support":60}],58:[function(require,module,exports){
 var arrayEach = require('../internal/arrayEach'),
     isArguments = require('../lang/isArguments'),
     isArray = require('../lang/isArray'),
@@ -5723,7 +6280,7 @@ function keysIn(object) {
 
 module.exports = keysIn;
 
-},{"../internal/arrayEach":22,"../internal/isIndex":36,"../internal/isLength":38,"../lang/isArguments":42,"../lang/isArray":43,"../lang/isFunction":44,"../lang/isObject":46,"../lang/isString":48,"../support":54}],53:[function(require,module,exports){
+},{"../internal/arrayEach":28,"../internal/isIndex":42,"../internal/isLength":44,"../lang/isArguments":48,"../lang/isArray":49,"../lang/isFunction":50,"../lang/isObject":52,"../lang/isString":54,"../support":60}],59:[function(require,module,exports){
 var baseMerge = require('../internal/baseMerge'),
     createAssigner = require('../internal/createAssigner');
 
@@ -5779,7 +6336,7 @@ var merge = createAssigner(baseMerge);
 
 module.exports = merge;
 
-},{"../internal/baseMerge":26,"../internal/createAssigner":30}],54:[function(require,module,exports){
+},{"../internal/baseMerge":32,"../internal/createAssigner":36}],60:[function(require,module,exports){
 /** Used for native method references. */
 var arrayProto = Array.prototype,
     errorProto = Error.prototype,
@@ -5877,7 +6434,7 @@ var support = {};
 
 module.exports = support;
 
-},{}],55:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 /**
  * This method returns the first argument provided to it.
  *
@@ -5899,7 +6456,7 @@ function identity(value) {
 
 module.exports = identity;
 
-},{}],56:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 /**
  * @file m3u8/index.js
  *
@@ -5936,7 +6493,7 @@ exports['default'] = {
   Parser: _parser2['default']
 };
 module.exports = exports['default'];
-},{"./line-stream":57,"./parse-stream":58,"./parser":59}],57:[function(require,module,exports){
+},{"./line-stream":63,"./parse-stream":64,"./parser":65}],63:[function(require,module,exports){
 /**
  * @file m3u8/line-stream.js
  */
@@ -6004,7 +6561,7 @@ var LineStream = (function (_Stream) {
 
 exports['default'] = LineStream;
 module.exports = exports['default'];
-},{"./stream":60}],58:[function(require,module,exports){
+},{"./stream":66}],64:[function(require,module,exports){
 /**
  * @file m3u8/parse-stream.js
  */
@@ -6013,6 +6570,8 @@ module.exports = exports['default'];
 Object.defineProperty(exports, '__esModule', {
   value: true
 });
+
+var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i['return']) _i['return'](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError('Invalid attempt to destructure non-iterable instance'); } }; })();
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
@@ -6270,6 +6829,40 @@ var ParseStream = (function (_Stream) {
         this.trigger('data', event);
         return;
       }
+      match = /^#EXT-X-MAP:?(.*)$/.exec(line);
+      if (match) {
+        event = {
+          type: 'tag',
+          tagType: 'map'
+        };
+
+        if (match[1]) {
+          var attributes = parseAttributes(match[1]);
+
+          if (attributes.URI) {
+            event.uri = attributes.URI;
+          }
+          if (attributes.BYTERANGE) {
+            var _attributes$BYTERANGE$split = attributes.BYTERANGE.split('@');
+
+            var _attributes$BYTERANGE$split2 = _slicedToArray(_attributes$BYTERANGE$split, 2);
+
+            var _length = _attributes$BYTERANGE$split2[0];
+            var offset = _attributes$BYTERANGE$split2[1];
+
+            event.byterange = {};
+            if (_length) {
+              event.byterange.length = parseInt(_length, 10);
+            }
+            if (offset) {
+              event.byterange.offset = parseInt(offset, 10);
+            }
+          }
+        }
+
+        this.trigger('data', event);
+        return;
+      }
       match = /^#EXT-X-STREAM-INF:?(.*)$/.exec(line);
       if (match) {
         event = {
@@ -6329,6 +6922,19 @@ var ParseStream = (function (_Stream) {
         });
         return;
       }
+      match = /^#EXT-X-PROGRAM-DATE-TIME:?(.*)$/.exec(line);
+      if (match) {
+        event = {
+          type: 'tag',
+          tagType: 'program-date-time'
+        };
+        if (match[1]) {
+          event.dateTimeString = match[1];
+          event.dateTimeObject = new Date(match[1]);
+        }
+        this.trigger('data', event);
+        return;
+      }
       match = /^#EXT-X-KEY:?(.*)$/.exec(line);
       if (match) {
         event = {
@@ -6354,11 +6960,53 @@ var ParseStream = (function (_Stream) {
         this.trigger('data', event);
         return;
       }
+      match = /^#EXT-X-CUE-OUT-CONT:?(.*)?$/.exec(line);
+      if (match) {
+        event = {
+          type: 'tag',
+          tagType: 'cue-out-cont'
+        };
+        if (match[1]) {
+          event.data = match[1];
+        } else {
+          event.data = '';
+        }
+        this.trigger('data', event);
+        return;
+      }
+      match = /^#EXT-X-CUE-OUT:?(.*)?$/.exec(line);
+      if (match) {
+        event = {
+          type: 'tag',
+          tagType: 'cue-out'
+        };
+        if (match[1]) {
+          event.data = match[1];
+        } else {
+          event.data = '';
+        }
+        this.trigger('data', event);
+        return;
+      }
+      match = /^#EXT-X-CUE-IN:?(.*)?$/.exec(line);
+      if (match) {
+        event = {
+          type: 'tag',
+          tagType: 'cue-in'
+        };
+        if (match[1]) {
+          event.data = match[1];
+        } else {
+          event.data = '';
+        }
+        this.trigger('data', event);
+        return;
+      }
 
       // unknown tag type
       this.trigger('data', {
         type: 'tag',
-        data: line.slice(4, line.length)
+        data: line.slice(4)
       });
     }
   }]);
@@ -6368,7 +7016,7 @@ var ParseStream = (function (_Stream) {
 
 exports['default'] = ParseStream;
 module.exports = exports['default'];
-},{"./stream":60}],59:[function(require,module,exports){
+},{"./stream":66}],65:[function(require,module,exports){
 /**
  * @file m3u8/parser.js
  */
@@ -6441,6 +7089,9 @@ var Parser = (function (_Stream) {
     /* eslint-enable consistent-this */
     var uris = [];
     var currentUri = {};
+    // if specified, the active EXT-X-MAP definition
+    var currentMap = undefined;
+    // if specified, the active decryption key
     var _key = undefined;
     var noop = function noop() {};
     var defaultMediaGroups = {
@@ -6586,6 +7237,15 @@ var Parser = (function (_Stream) {
               }
               this.manifest.playlistType = entry.playlistType;
             },
+            map: function map() {
+              currentMap = {};
+              if (entry.uri) {
+                currentMap.uri = entry.uri;
+              }
+              if (entry.byterange) {
+                currentMap.byterange = entry.byterange;
+              }
+            },
             'stream-inf': function streamInf() {
               this.manifest.playlists = uris;
               this.manifest.mediaGroups = this.manifest.mediaGroups || defaultMediaGroups;
@@ -6633,6 +7293,9 @@ var Parser = (function (_Stream) {
               if (entry.attributes.URI) {
                 rendition.uri = entry.attributes.URI;
               }
+              if (entry.attributes['INSTREAM-ID']) {
+                rendition.instreamId = entry.attributes['INSTREAM-ID'];
+              }
 
               // insert the new rendition
               mediaGroup[entry.attributes.NAME] = rendition;
@@ -6641,6 +7304,10 @@ var Parser = (function (_Stream) {
               currentTimeline += 1;
               currentUri.discontinuity = true;
               this.manifest.discontinuityStarts.push(uris.length);
+            },
+            'program-date-time': function programDateTime() {
+              this.manifest.dateTimeString = entry.dateTimeString;
+              this.manifest.dateTimeObject = entry.dateTimeObject;
             },
             targetduration: function targetduration() {
               if (!isFinite(entry.duration) || entry.duration < 0) {
@@ -6659,6 +7326,15 @@ var Parser = (function (_Stream) {
                 return;
               }
               this.manifest.totalDuration = entry.duration;
+            },
+            'cue-out': function cueOut() {
+              currentUri.cueOut = entry.data;
+            },
+            'cue-out-cont': function cueOutCont() {
+              currentUri.cueOutCont = entry.data;
+            },
+            'cue-in': function cueIn() {
+              currentUri.cueIn = entry.data;
             }
           })[entry.tagType] || noop).call(self);
         },
@@ -6678,6 +7354,10 @@ var Parser = (function (_Stream) {
             currentUri.key = _key;
           }
           currentUri.timeline = currentTimeline;
+          // annotate with initialization segment information, if necessary
+          if (currentMap) {
+            currentUri.map = currentMap;
+          }
 
           // prepare for the next URI
           currentUri = {};
@@ -6719,130 +7399,9 @@ var Parser = (function (_Stream) {
 
 exports['default'] = Parser;
 module.exports = exports['default'];
-},{"./line-stream":57,"./parse-stream":58,"./stream":60,"lodash-compat/object/merge":53}],60:[function(require,module,exports){
-arguments[4][16][0].apply(exports,arguments)
-},{"dup":16}],61:[function(require,module,exports){
-/*
- * pkcs7.pad
- * https://github.com/brightcove/pkcs7
- *
- * Copyright (c) 2014 Brightcove
- * Licensed under the apache2 license.
- */
-
-'use strict';
-
-var PADDING;
-
-/**
- * Returns a new Uint8Array that is padded with PKCS#7 padding.
- * @param plaintext {Uint8Array} the input bytes before encryption
- * @return {Uint8Array} the padded bytes
- * @see http://tools.ietf.org/html/rfc5652
- */
-module.exports = function pad(plaintext) {
-  var padding = PADDING[(plaintext.byteLength % 16) || 0],
-      result = new Uint8Array(plaintext.byteLength + padding.length);
-  result.set(plaintext);
-  result.set(padding, plaintext.byteLength);
-  return result;
-};
-
-// pre-define the padding values
-PADDING = [
-  [16, 16, 16, 16,
-   16, 16, 16, 16,
-   16, 16, 16, 16,
-   16, 16, 16, 16],
-
-  [15, 15, 15, 15,
-   15, 15, 15, 15,
-   15, 15, 15, 15,
-   15, 15, 15],
-
-  [14, 14, 14, 14,
-   14, 14, 14, 14,
-   14, 14, 14, 14,
-   14, 14],
-
-  [13, 13, 13, 13,
-   13, 13, 13, 13,
-   13, 13, 13, 13,
-   13],
-
-  [12, 12, 12, 12,
-   12, 12, 12, 12,
-   12, 12, 12, 12],
-
-  [11, 11, 11, 11,
-   11, 11, 11, 11,
-   11, 11, 11],
-
-  [10, 10, 10, 10,
-   10, 10, 10, 10,
-   10, 10],
-
-  [9, 9, 9, 9,
-   9, 9, 9, 9,
-   9],
-
-  [8, 8, 8, 8,
-   8, 8, 8, 8],
-
-  [7, 7, 7, 7,
-   7, 7, 7],
-
-  [6, 6, 6, 6,
-   6, 6],
-
-  [5, 5, 5, 5,
-   5],
-
-  [4, 4, 4, 4],
-
-  [3, 3, 3],
-
-  [2, 2],
-
-  [1]
-];
-
-},{}],62:[function(require,module,exports){
-/*
- * pkcs7
- * https://github.com/brightcove/pkcs7
- *
- * Copyright (c) 2014 Brightcove
- * Licensed under the apache2 license.
- */
-
-'use strict';
-
-exports.pad = require('./pad.js');
-exports.unpad = require('./unpad.js');
-
-},{"./pad.js":61,"./unpad.js":63}],63:[function(require,module,exports){
-/*
- * pkcs7.unpad
- * https://github.com/brightcove/pkcs7
- *
- * Copyright (c) 2014 Brightcove
- * Licensed under the apache2 license.
- */
-
-'use strict';
-
-/**
- * Returns the subarray of a Uint8Array without PKCS#7 padding.
- * @param padded {Uint8Array} unencrypted bytes that have been padded
- * @return {Uint8Array} the unpadded bytes
- * @see http://tools.ietf.org/html/rfc5652
- */
-module.exports = function unpad(padded) {
-  return padded.subarray(0, padded.byteLength - padded[padded.byteLength - 1]);
-};
-
-},{}],64:[function(require,module,exports){
+},{"./line-stream":63,"./parse-stream":64,"./stream":66,"lodash-compat/object/merge":59}],66:[function(require,module,exports){
+arguments[4][13][0].apply(exports,arguments)
+},{"dup":13}],67:[function(require,module,exports){
 (function (global){
 /**
  * @file add-text-track-data.js
@@ -6854,6 +7413,10 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
 
 var _videoJs = (typeof window !== "undefined" ? window['videojs'] : typeof global !== "undefined" ? global['videojs'] : null);
 
@@ -6900,7 +7463,7 @@ var deprecateOldCue = function deprecateOldCue(cue) {
  * @private
  */
 var addTextTrackData = function addTextTrackData(sourceHandler, captionArray, metadataArray) {
-  var Cue = window.WebKitDataCue || window.VTTCue;
+  var Cue = _globalWindow2['default'].WebKitDataCue || _globalWindow2['default'].VTTCue;
 
   if (captionArray) {
     captionArray.forEach(function (caption) {
@@ -6927,7 +7490,7 @@ var addTextTrackData = function addTextTrackData(sourceHandler, captionArray, me
 exports['default'] = addTextTrackData;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],65:[function(require,module,exports){
+},{"global/window":25}],68:[function(require,module,exports){
 /**
  * @file codec-utils.js
  */
@@ -6995,7 +7558,7 @@ exports['default'] = {
   isVideoCodec: isVideoCodec
 };
 module.exports = exports['default'];
-},{}],66:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 /**
  * @file create-text-tracks-if-necessary.js
  */
@@ -7027,7 +7590,7 @@ var createTextTracksIfNecessary = function createTextTracksIfNecessary(sourceBuf
 
 exports['default'] = createTextTracksIfNecessary;
 module.exports = exports['default'];
-},{}],67:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 /**
  * @file flash-constants.js
  */
@@ -7073,7 +7636,7 @@ var flashConstants = {
 
 exports["default"] = flashConstants;
 module.exports = exports["default"];
-},{}],68:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 (function (global){
 /**
  * @file flash-media-source.js
@@ -7093,6 +7656,10 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'd
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var _globalDocument = require('global/document');
+
+var _globalDocument2 = _interopRequireDefault(_globalDocument);
 
 var _videoJs = (typeof window !== "undefined" ? window['videojs'] : typeof global !== "undefined" ? global['videojs'] : null);
 
@@ -7131,7 +7698,7 @@ var FlashMediaSource = (function (_videojs$EventTarget) {
 
     this.on(['sourceopen', 'webkitsourceopen'], function (event) {
       // find the swf where we will push media data
-      _this.swfObj = document.getElementById(event.swfId);
+      _this.swfObj = _globalDocument2['default'].getElementById(event.swfId);
       _this.player_ = (0, _videoJs2['default'])(_this.swfObj.parentNode);
       _this.tech_ = _this.swfObj.tech;
       _this.readyState = 'open';
@@ -7277,7 +7844,7 @@ for (var property in _flashConstants2['default']) {
 }
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./codec-utils":65,"./flash-constants":67,"./flash-source-buffer":69}],69:[function(require,module,exports){
+},{"./codec-utils":68,"./flash-constants":70,"./flash-source-buffer":72,"global/document":24}],72:[function(require,module,exports){
 (function (global){
 /**
  * @file flash-source-buffer.js
@@ -7297,6 +7864,10 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'd
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
 
 var _videoJs = (typeof window !== "undefined" ? window['videojs'] : typeof global !== "undefined" ? global['videojs'] : null);
 
@@ -7332,7 +7903,7 @@ var _flashConstants2 = _interopRequireDefault(_flashConstants);
 var scheduleTick = function scheduleTick(func) {
   // Chrome doesn't invoke requestAnimationFrame callbacks
   // in background tabs, so use setTimeout.
-  window.setTimeout(func, _flashConstants2['default'].TIME_BETWEEN_TICKS);
+  _globalWindow2['default'].setTimeout(func, _flashConstants2['default'].TIME_BETWEEN_TICKS);
 };
 
 /**
@@ -7400,8 +7971,12 @@ var FlashSourceBuffer = (function (_videojs$EventTarget) {
     // TS to FLV transmuxer
     this.segmentParser_ = new _muxJsLibFlv2['default'].Transmuxer();
     this.segmentParser_.on('data', this.receiveBuffer_.bind(this));
-    encodedHeader = window.btoa(String.fromCharCode.apply(null, Array.prototype.slice.call(this.segmentParser_.getFlvHeader())));
+    encodedHeader = _globalWindow2['default'].btoa(String.fromCharCode.apply(null, Array.prototype.slice.call(this.segmentParser_.getFlvHeader())));
     this.mediaSource.swfObj.vjs_appendBuffer(encodedHeader);
+
+    this.one('updateend', function () {
+      _this.mediaSource.tech_.trigger('loadedmetadata');
+    });
 
     Object.defineProperty(this, 'timestampOffset', {
       get: function get() {
@@ -7602,7 +8177,7 @@ var FlashSourceBuffer = (function (_videojs$EventTarget) {
         for (i = 0; i < length; i++) {
           binary += String.fromCharCode(chunk[i]);
         }
-        b64str = window.btoa(binary);
+        b64str = _globalWindow2['default'].btoa(binary);
 
         // bypass normal ExternalInterface calls and pass xml directly
         // IE can be slow by default
@@ -7739,7 +8314,7 @@ var FlashSourceBuffer = (function (_videojs$EventTarget) {
 exports['default'] = FlashSourceBuffer;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./add-text-track-data":64,"./create-text-tracks-if-necessary":66,"./flash-constants":67,"./remove-cues-from-track":71,"mux.js/lib/flv":79}],70:[function(require,module,exports){
+},{"./add-text-track-data":67,"./create-text-tracks-if-necessary":69,"./flash-constants":70,"./remove-cues-from-track":74,"global/window":25,"mux.js/lib/flv":82}],73:[function(require,module,exports){
 (function (global){
 /**
  * @file html-media-source.js
@@ -7759,6 +8334,14 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'd
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
+
+var _globalDocument = require('global/document');
+
+var _globalDocument2 = _interopRequireDefault(_globalDocument);
 
 var _videoJs = (typeof window !== "undefined" ? window['videojs'] : typeof global !== "undefined" ? global['videojs'] : null);
 
@@ -7809,7 +8392,7 @@ var HtmlMediaSource = (function (_videojs$EventTarget) {
     _get(Object.getPrototypeOf(HtmlMediaSource.prototype), 'constructor', this).call(this);
     var property = undefined;
 
-    this.nativeMediaSource_ = new window.MediaSource();
+    this.nativeMediaSource_ = new _globalWindow2['default'].MediaSource();
     // delegate to the native MediaSource's methods by default
     for (property in this.nativeMediaSource_) {
       if (!(property in HtmlMediaSource.prototype) && typeof this.nativeMediaSource_[property] === 'function') {
@@ -7930,7 +8513,7 @@ var HtmlMediaSource = (function (_videojs$EventTarget) {
     // successfully attached
     this.on('sourceopen', function (event) {
       // Get the player this MediaSource is attached to
-      var video = document.querySelector('[src="' + _this.url_ + '"]');
+      var video = _globalDocument2['default'].querySelector('[src="' + _this.url_ + '"]');
 
       if (!video) {
         return;
@@ -8052,7 +8635,7 @@ var HtmlMediaSource = (function (_videojs$EventTarget) {
 exports['default'] = HtmlMediaSource;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./codec-utils":65,"./virtual-source-buffer":74}],71:[function(require,module,exports){
+},{"./codec-utils":68,"./virtual-source-buffer":77,"global/document":24,"global/window":25}],74:[function(require,module,exports){
 /**
  * @file remove-cues-from-track.js
  */
@@ -8092,7 +8675,7 @@ var removeCuesFromTrack = function removeCuesFromTrack(start, end, track) {
 
 exports["default"] = removeCuesFromTrack;
 module.exports = exports["default"];
-},{}],72:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 /**
  * @file transmuxer-worker.js
  */
@@ -8119,6 +8702,10 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'd
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
+
 var _muxJsLibMp4 = require('mux.js/lib/mp4');
 
 var _muxJsLibMp42 = _interopRequireDefault(_muxJsLibMp4);
@@ -8139,7 +8726,7 @@ var wireTransmuxerEvents = function wireTransmuxerEvents(transmuxer) {
     var typedArray = segment.data;
 
     segment.data = typedArray.buffer;
-    postMessage({
+    _globalWindow2['default'].postMessage({
       action: 'data',
       segment: segment,
       byteOffset: typedArray.byteOffset,
@@ -8149,7 +8736,7 @@ var wireTransmuxerEvents = function wireTransmuxerEvents(transmuxer) {
 
   if (transmuxer.captionStream) {
     transmuxer.captionStream.on('data', function (caption) {
-      postMessage({
+      _globalWindow2['default'].postMessage({
         action: 'caption',
         data: caption
       });
@@ -8157,7 +8744,7 @@ var wireTransmuxerEvents = function wireTransmuxerEvents(transmuxer) {
   }
 
   transmuxer.on('done', function (data) {
-    postMessage({ action: 'done' });
+    _globalWindow2['default'].postMessage({ action: 'done' });
   });
 };
 
@@ -8279,7 +8866,7 @@ exports['default'] = function (self) {
 };
 
 module.exports = exports['default'];
-},{"mux.js/lib/mp4":85}],73:[function(require,module,exports){
+},{"global/window":25,"mux.js/lib/mp4":88}],76:[function(require,module,exports){
 (function (global){
 /**
  * @file videojs-contrib-media-sources.js
@@ -8291,6 +8878,10 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
 
 var _flashMediaSource = require('./flash-media-source');
 
@@ -8349,7 +8940,7 @@ var open = function open(msObjectURL, swfId) {
  * @return {Boolean} if  native media sources are supported
  */
 var supportsNativeMediaSources = function supportsNativeMediaSources() {
-  return !!window.MediaSource && !!window.MediaSource.isTypeSupported && window.MediaSource.isTypeSupported('video/mp4;codecs="avc1.4d400d,mp4a.40.2"');
+  return !!_globalWindow2['default'].MediaSource && !!_globalWindow2['default'].MediaSource.isTypeSupported && _globalWindow2['default'].MediaSource.isTypeSupported('video/mp4;codecs="avc1.4d400d,mp4a.40.2"');
 };
 
 /**
@@ -8404,14 +8995,14 @@ var URL = {
 
     // use the native MediaSource to generate an object URL
     if (object instanceof _htmlMediaSource2['default']) {
-      url = window.URL.createObjectURL(object.nativeMediaSource_);
+      url = _globalWindow2['default'].URL.createObjectURL(object.nativeMediaSource_);
       object.url_ = url;
       return url;
     }
     // if the object isn't an emulated MediaSource, delegate to the
     // native implementation
     if (!(object instanceof _flashMediaSource2['default'])) {
-      url = window.URL.createObjectURL(object);
+      url = _globalWindow2['default'].URL.createObjectURL(object);
       object.url_ = url;
       return url;
     }
@@ -8433,7 +9024,7 @@ exports.URL = URL;
 _videoJs2['default'].MediaSource = MediaSource;
 _videoJs2['default'].URL = URL;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./flash-media-source":68,"./html-media-source":70}],74:[function(require,module,exports){
+},{"./flash-media-source":71,"./html-media-source":73,"global/window":25}],77:[function(require,module,exports){
 (function (global){
 /**
  * @file virtual-source-buffer.js
@@ -8971,7 +9562,7 @@ var VirtualSourceBuffer = (function (_videojs$EventTarget) {
 exports['default'] = VirtualSourceBuffer;
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./add-text-track-data":64,"./codec-utils":65,"./create-text-tracks-if-necessary":66,"./remove-cues-from-track":71,"./transmuxer-worker":72,"webworkify":90}],75:[function(require,module,exports){
+},{"./add-text-track-data":67,"./codec-utils":68,"./create-text-tracks-if-necessary":69,"./remove-cues-from-track":74,"./transmuxer-worker":75,"webworkify":93}],78:[function(require,module,exports){
 /**
  * mux.js
  *
@@ -8995,12 +9586,11 @@ var AacStream;
 AacStream = function() {
   var
     everything = new Uint8Array(),
-    receivedTimeStamp = false,
     timeStamp = 0;
 
   AacStream.prototype.init.call(this);
 
-  this.setTimestamp = function (timestamp) {
+  this.setTimestamp = function(timestamp) {
     timeStamp = timestamp;
   };
 
@@ -9095,7 +9685,7 @@ AacStream = function() {
           type: 'audio',
           data: everything.subarray(byteIndex, byteIndex + frameSize),
           pts: timeStamp,
-          dts: timeStamp,
+          dts: timeStamp
         };
         this.trigger('data', packet);
         byteIndex += frameSize;
@@ -9115,11 +9705,9 @@ AacStream = function() {
 
 AacStream.prototype = new Stream();
 
-
-
 module.exports = AacStream;
 
-},{"../utils/stream.js":89}],76:[function(require,module,exports){
+},{"../utils/stream.js":92}],79:[function(require,module,exports){
 'use strict';
 
 var Stream = require('../utils/stream.js');
@@ -9152,11 +9740,9 @@ var
  * @see http://wiki.multimedia.cx/?title=Understanding_AAC
  */
 AdtsStream = function() {
-  var self, buffer;
+  var buffer;
 
   AdtsStream.prototype.init.call(this);
-
-  self = this;
 
   this.push = function(packet) {
     var
@@ -9166,7 +9752,6 @@ AdtsStream = function() {
       protectionSkipBytes,
       frameEnd,
       oldBuffer,
-      numFrames,
       sampleCount,
       adtsFrameDuration;
 
@@ -9256,13 +9841,14 @@ AdtsStream.prototype = new Stream();
 
 module.exports = AdtsStream;
 
-},{"../utils/stream.js":89}],77:[function(require,module,exports){
+},{"../utils/stream.js":92}],80:[function(require,module,exports){
 'use strict';
 
 var Stream = require('../utils/stream.js');
 var ExpGolomb = require('../utils/exp-golomb.js');
 
 var H264Stream, NalByteStream;
+var PROFILES_WITH_OPTIONAL_SPS_DATA;
 
 /**
  * Accepts a NAL unit byte stream and unpacks the embedded NAL units.
@@ -9320,7 +9906,7 @@ NalByteStream = function() {
         }
 
         // deliver the NAL unit if it isn't empty
-        if (syncPoint + 3 !==  i - 2) {
+        if (syncPoint + 3 !== i - 2) {
           this.trigger('data', buffer.subarray(syncPoint + 3, i - 2));
         }
 
@@ -9369,6 +9955,24 @@ NalByteStream = function() {
   };
 };
 NalByteStream.prototype = new Stream();
+
+// values of profile_idc that indicate additional fields are included in the SPS
+// see Recommendation ITU-T H.264 (4/2013),
+// 7.3.2.1.1 Sequence parameter set data syntax
+PROFILES_WITH_OPTIONAL_SPS_DATA = {
+  100: true,
+  110: true,
+  122: true,
+  244: true,
+  44: true,
+  83: true,
+  86: true,
+  118: true,
+  128: true,
+  138: true,
+  139: true,
+  134: true
+};
 
 /**
  * Accepts input from a ElementaryStream and produces H.264 NAL unit data
@@ -9550,18 +10154,7 @@ H264Stream = function() {
     expGolombDecoder.skipUnsignedExpGolomb(); // seq_parameter_set_id
 
     // some profiles have more optional data we don't need
-    if (profileIdc === 100 ||
-        profileIdc === 110 ||
-        profileIdc === 122 ||
-        profileIdc === 244 ||
-        profileIdc ===  44 ||
-        profileIdc ===  83 ||
-        profileIdc ===  86 ||
-        profileIdc === 118 ||
-        profileIdc === 128 ||
-        profileIdc === 138 ||
-        profileIdc === 139 ||
-        profileIdc === 134) {
+    if (PROFILES_WITH_OPTIONAL_SPS_DATA[profileIdc]) {
       chromaFormatIdc = expGolombDecoder.readUnsignedExpGolomb();
       if (chromaFormatIdc === 3) {
         expGolombDecoder.skipBits(1); // separate_colour_plane_flag
@@ -9587,13 +10180,13 @@ H264Stream = function() {
     picOrderCntType = expGolombDecoder.readUnsignedExpGolomb();
 
     if (picOrderCntType === 0) {
-      expGolombDecoder.readUnsignedExpGolomb(); //log2_max_pic_order_cnt_lsb_minus4
+      expGolombDecoder.readUnsignedExpGolomb(); // log2_max_pic_order_cnt_lsb_minus4
     } else if (picOrderCntType === 1) {
       expGolombDecoder.skipBits(1); // delta_pic_order_always_zero_flag
       expGolombDecoder.skipExpGolomb(); // offset_for_non_ref_pic
       expGolombDecoder.skipExpGolomb(); // offset_for_top_to_bottom_field
       numRefFramesInPicOrderCntCycle = expGolombDecoder.readUnsignedExpGolomb();
-      for(i = 0; i < numRefFramesInPicOrderCntCycle; i++) {
+      for (i = 0; i < numRefFramesInPicOrderCntCycle; i++) {
         expGolombDecoder.skipExpGolomb(); // offset_for_ref_frame[ i ]
       }
     }
@@ -9622,22 +10215,22 @@ H264Stream = function() {
         // aspect_ratio_info_present_flag
         aspectRatioIdc = expGolombDecoder.readUnsignedByte();
         switch (aspectRatioIdc) {
-          case 1: sarRatio = [1,1]; break;
-          case 2: sarRatio = [12,11]; break;
-          case 3: sarRatio = [10,11]; break;
-          case 4: sarRatio = [16,11]; break;
-          case 5: sarRatio = [40,33]; break;
-          case 6: sarRatio = [24,11]; break;
-          case 7: sarRatio = [20,11]; break;
-          case 8: sarRatio = [32,11]; break;
-          case 9: sarRatio = [80,33]; break;
-          case 10: sarRatio = [18,11]; break;
-          case 11: sarRatio = [15,11]; break;
-          case 12: sarRatio = [64,33]; break;
-          case 13: sarRatio = [160,99]; break;
-          case 14: sarRatio = [4,3]; break;
-          case 15: sarRatio = [3,2]; break;
-          case 16: sarRatio = [2,1]; break;
+          case 1: sarRatio = [1, 1]; break;
+          case 2: sarRatio = [12, 11]; break;
+          case 3: sarRatio = [10, 11]; break;
+          case 4: sarRatio = [16, 11]; break;
+          case 5: sarRatio = [40, 33]; break;
+          case 6: sarRatio = [24, 11]; break;
+          case 7: sarRatio = [20, 11]; break;
+          case 8: sarRatio = [32, 11]; break;
+          case 9: sarRatio = [80, 33]; break;
+          case 10: sarRatio = [18, 11]; break;
+          case 11: sarRatio = [15, 11]; break;
+          case 12: sarRatio = [64, 33]; break;
+          case 13: sarRatio = [160, 99]; break;
+          case 14: sarRatio = [4, 3]; break;
+          case 15: sarRatio = [3, 2]; break;
+          case 16: sarRatio = [2, 1]; break;
           case 255: {
             sarRatio = [expGolombDecoder.readUnsignedByte() << 8 |
                         expGolombDecoder.readUnsignedByte(),
@@ -9665,10 +10258,10 @@ H264Stream.prototype = new Stream();
 
 module.exports = {
   H264Stream: H264Stream,
-  NalByteStream: NalByteStream,
+  NalByteStream: NalByteStream
 };
 
-},{"../utils/exp-golomb.js":88,"../utils/stream.js":89}],78:[function(require,module,exports){
+},{"../utils/exp-golomb.js":91,"../utils/stream.js":92}],81:[function(require,module,exports){
 /**
  * An object that stores the bytes of an FLV tag and methods for
  * querying and manipulating that data.
@@ -9736,7 +10329,7 @@ FlvTag = function(type, extraData) {
 
   this.keyFrame = false; // :Boolean
 
-  switch(type) {
+  switch (type) {
   case FlvTag.VIDEO_TAG:
     this.length = 16;
     // Start the buffer at 256k
@@ -9751,7 +10344,7 @@ FlvTag = function(type, extraData) {
     this.keyFrame = true;
     break;
   default:
-    throw("Error Unknown TagType");
+    throw new Error('Unknown FLV tag type');
   }
 
   this.bytes = new Uint8Array(bufferStartSize);
@@ -9816,7 +10409,7 @@ FlvTag = function(type, extraData) {
   this.startNalUnit = function() {
     // remember position and add 4 bytes
     if (adHoc > 0) {
-      throw new Error("Attempted to create new NAL wihout closing the old one");
+      throw new Error('Attempted to create new NAL wihout closing the old one');
     }
 
     // reserve 4 bytes for nal unit size
@@ -9924,10 +10517,12 @@ FlvTag = function(type, extraData) {
       dtsDelta, // :int
       len; // :int
 
-    switch(this.bytes[0]) {
+    switch (this.bytes[0]) {
       // Video Data
     case FlvTag.VIDEO_TAG:
-      this.bytes[11] = ((this.keyFrame || extraData) ? 0x10 : 0x20 ) | 0x07; // We only support AVC, 1 = key frame (for AVC, a seekable frame), 2 = inter frame (for AVC, a non-seekable frame)
+       // We only support AVC, 1 = key frame (for AVC, a seekable
+       // frame), 2 = inter frame (for AVC, a non-seekable frame)
+      this.bytes[11] = ((this.keyFrame || extraData) ? 0x10 : 0x20) | 0x07;
       this.bytes[12] = extraData ?  0x00 : 0x01;
 
       dtsDelta = this.pts - this.dts;
@@ -10040,13 +10635,13 @@ FlvTag.frameTime = function(tag) {
 
 module.exports = FlvTag;
 
-},{}],79:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 module.exports = {
   tag: require('./flv-tag'),
   Transmuxer: require('./transmuxer')
 };
 
-},{"./flv-tag":78,"./transmuxer":80}],80:[function(require,module,exports){
+},{"./flv-tag":81,"./transmuxer":83}],83:[function(require,module,exports){
 'use strict';
 
 var Stream = require('../utils/stream.js');
@@ -10056,7 +10651,6 @@ var AdtsStream = require('../codecs/adts.js');
 var H264Stream = require('../codecs/h264').H264Stream;
 
 var
-  MetadataStream,
   Transmuxer,
   VideoSegmentStream,
   AudioSegmentStream,
@@ -10070,7 +10664,7 @@ var
  * duration for each frame/sample we process in order to calculate
  * the baseMediaDecodeTime
  */
-collectTimelineInfo = function (track, data) {
+collectTimelineInfo = function(track, data) {
   if (typeof data.pts === 'number') {
     if (track.timelineStartInfo.pts === undefined) {
       track.timelineStartInfo.pts = data.pts;
@@ -10097,9 +10691,9 @@ metaDataTag = function(track, pts) {
   tag.dts = pts;
   tag.pts = pts;
 
-  tag.writeMetaDataDouble("videocodecid", 7);
-  tag.writeMetaDataDouble("width", track.width);
-  tag.writeMetaDataDouble("height", track.height);
+  tag.writeMetaDataDouble('videocodecid', 7);
+  tag.writeMetaDataDouble('width', track.width);
+  tag.writeMetaDataDouble('height', track.height);
 
   return tag;
 };
@@ -10117,12 +10711,12 @@ extraDataTag = function(track, pts) {
   tag.writeByte(track.profileCompatibility);// compatibility
   tag.writeByte(track.levelIdc);// level
   tag.writeByte(0xFC | 0x03); // reserved (6 bits), NULA length size - 1 (2 bits)
-  tag.writeByte(0xE0 | 0x01 ); // reserved (3 bits), num of SPS (5 bits)
-  tag.writeShort( track.sps[0].length ); // data of SPS
-  tag.writeBytes( track.sps[0] ); // SPS
+  tag.writeByte(0xE0 | 0x01); // reserved (3 bits), num of SPS (5 bits)
+  tag.writeShort(track.sps[0].length); // data of SPS
+  tag.writeBytes(track.sps[0]); // SPS
 
   tag.writeByte(track.pps.length); // num of PPS (will there ever be more that 1 PPS?)
-  for (i = 0 ; i < track.pps.length ; ++i) {
+  for (i = 0; i < track.pps.length; ++i) {
     tag.writeShort(track.pps[i].length); // 2 bytes for length of PPS
     tag.writeBytes(track.pps[i]); // data of PPS
   }
@@ -10137,9 +10731,6 @@ extraDataTag = function(track, pts) {
 AudioSegmentStream = function(track) {
   var
     adtsFrames = [],
-    adtsFramesLength = 0,
-    sequenceNumber = 0,
-    earliestAllowedDts = 0,
     oldExtraData;
 
   AudioSegmentStream.prototype.init.call(this);
@@ -10166,7 +10757,7 @@ AudioSegmentStream = function(track) {
   };
 
   this.flush = function() {
-    var currentFrame, adtsFrame, deltaDts,lastMetaPts, tags = [];
+    var currentFrame, adtsFrame, lastMetaPts, tags = [];
     // return early if no audio data has been observed
     if (adtsFrames.length === 0) {
       this.trigger('done');
@@ -10187,11 +10778,11 @@ AudioSegmentStream = function(track) {
         adtsFrame.dts = currentFrame.dts;
 
         // AAC is always 10
-        adtsFrame.writeMetaDataDouble("audiocodecid", 10);
-        adtsFrame.writeMetaDataBoolean("stereo", 2 === track.channelcount);
-        adtsFrame.writeMetaDataDouble ("audiosamplerate", track.samplerate);
+        adtsFrame.writeMetaDataDouble('audiocodecid', 10);
+        adtsFrame.writeMetaDataBoolean('stereo', track.channelcount === 2);
+        adtsFrame.writeMetaDataDouble('audiosamplerate', track.samplerate);
         // Is AAC always 16 bit?
-        adtsFrame.writeMetaDataDouble ("audiosamplesize", 16);
+        adtsFrame.writeMetaDataDouble('audiosamplesize', 16);
 
         tags.push(adtsFrame);
 
@@ -10235,9 +10826,7 @@ AudioSegmentStream.prototype = new Stream();
  */
 VideoSegmentStream = function(track) {
   var
-    sequenceNumber = 0,
     nalUnits = [],
-    nalUnitsLength = 0,
     config,
     h264Frame;
   VideoSegmentStream.prototype.init.call(this);
@@ -10456,8 +11045,6 @@ CoalesceStream.prototype.flush = function() {
 Transmuxer = function(options) {
   var
     self = this,
-    videoTrack,
-    audioTrack,
 
     packetStream, parseStream, elementaryStream,
     adtsStream, h264Stream,
@@ -10553,12 +11140,12 @@ Transmuxer = function(options) {
   };
 
   // Re-emit any data coming from the coalesce stream to the outside world
-  coalesceStream.on('data', function (event) {
+  coalesceStream.on('data', function(event) {
     self.trigger('data', event);
   });
 
   // Let the consumer know we have finished flushing the entire pipeline
-  coalesceStream.on('done', function () {
+  coalesceStream.on('done', function() {
     self.trigger('done');
   });
 
@@ -10578,8 +11165,8 @@ Transmuxer = function(options) {
 
     // default arguments
     duration = duration || 0;
-    audio = audio === undefined? true : audio;
-    video = video === undefined? true : video;
+    audio = audio === undefined ? true : audio;
+    video = video === undefined ? true : video;
 
     // signature
     head.setUint8(0, 0x46); // 'F'
@@ -10608,7 +11195,7 @@ Transmuxer = function(options) {
     // write out the duration metadata tag
     metadata = new FlvTag(FlvTag.METADATA_TAG);
     metadata.pts = metadata.dts = 0;
-    metadata.writeMetaDataDouble("duration", duration);
+    metadata.writeMetaDataDouble('duration', duration);
     metadataLength = metadata.finalize().length;
     result = new Uint8Array(headBytes.byteLength + metadataLength);
     result.set(headBytes);
@@ -10622,7 +11209,7 @@ Transmuxer.prototype = new Stream();
 // forward compatibility
 module.exports = Transmuxer;
 
-},{"../codecs/adts.js":76,"../codecs/h264":77,"../m2ts/m2ts.js":82,"../utils/stream.js":89,"./flv-tag.js":78}],81:[function(require,module,exports){
+},{"../codecs/adts.js":79,"../codecs/h264":80,"../m2ts/m2ts.js":85,"../utils/stream.js":92,"./flv-tag.js":81}],84:[function(require,module,exports){
 /**
  * mux.js
  *
@@ -10662,7 +11249,7 @@ var parseSei = function(bytes) {
     i = 0,
     result = {
       payloadType: -1,
-      payloadSize: 0,
+      payloadSize: 0
     },
     payloadType = 0,
     payloadSize = 0;
@@ -10765,12 +11352,11 @@ var parseCaptionPackets = function(pts, userData) {
 };
 
 var CaptionStream = function() {
-  var self = this;
   CaptionStream.prototype.init.call(this);
 
   this.captionPackets_ = [];
 
-  this.field1_ = new Cea608Stream();
+  this.field1_ = new Cea608Stream(); // eslint-disable-line no-use-before-define
 
   // forward data and done events from field1_ to this CaptionStream
   this.field1_.on('data', this.trigger.bind(this, 'data'));
@@ -10778,7 +11364,7 @@ var CaptionStream = function() {
 };
 CaptionStream.prototype = new Stream();
 CaptionStream.prototype.push = function(event) {
-  var sei, userData, captionPackets;
+  var sei, userData;
 
   // only examine SEI NALs
   if (event.nalUnitType !== 'sei_rbsp') {
@@ -10805,7 +11391,7 @@ CaptionStream.prototype.push = function(event) {
   this.captionPackets_ = this.captionPackets_.concat(parseCaptionPackets(event.pts, userData));
 };
 
-CaptionStream.prototype.flush = function () {
+CaptionStream.prototype.flush = function() {
   // make sure we actually parsed captions before proceeding
   if (!this.captionPackets_.length) {
     this.field1_.flush();
@@ -10842,7 +11428,7 @@ var BASIC_CHARACTER_TRANSLATION = {
 };
 
 var getCharFromCode = function(code) {
-  if(code === null) {
+  if (code === null) {
     return '';
   }
   code = BASIC_CHARACTER_TRANSLATION[code] || code;
@@ -10863,7 +11449,6 @@ var PADDING                    = 0x0000,
     ROLL_UP_2_ROWS             = 0x1425,
     ROLL_UP_3_ROWS             = 0x1426,
     ROLL_UP_4_ROWS             = 0x1427,
-    RESUME_DIRECT_CAPTIONING   = 0x1429,
     CARRIAGE_RETURN            = 0x142d,
     // Erasure
     BACKSPACE                  = 0x1421,
@@ -11009,9 +11594,13 @@ Cea608Stream.prototype = new Stream();
 Cea608Stream.prototype.flushDisplayed = function(pts) {
   var content = this.displayed_
     // remove spaces from the start and end of the string
-    .map(function(row) { return row.trim(); })
+    .map(function(row) {
+      return row.trim();
+    })
     // remove empty rows
-    .filter(function(row) { return row.length; })
+    .filter(function(row) {
+      return row.length;
+    })
     // combine all text rows to display in one cue
     .join('\n');
 
@@ -11066,11 +11655,10 @@ Cea608Stream.prototype.shiftRowsUp_ = function() {
 // exports
 module.exports = {
   CaptionStream: CaptionStream,
-  Cea608Stream: Cea608Stream,
+  Cea608Stream: Cea608Stream
 };
 
-
-},{"../utils/stream":89}],82:[function(require,module,exports){
+},{"../utils/stream":92}],85:[function(require,module,exports){
 /**
  * mux.js
  *
@@ -11086,18 +11674,15 @@ var Stream = require('../utils/stream.js'),
   CaptionStream = require('./caption-stream'),
   StreamTypes = require('./stream-types');
 
-var Stream = require('../utils/stream.js');
 var m2tsStreamTypes = require('./stream-types.js');
 
 // object types
-var
-  TransportPacketStream, TransportParseStream, ElementaryStream,
-  AacStream, H264Stream, NalByteStream;
+var TransportPacketStream, TransportParseStream, ElementaryStream;
 
 // constants
 var
   MP2T_PACKET_LENGTH = 188, // bytes
-  SYNC_BYTE = 0x47,
+  SYNC_BYTE = 0x47;
 
 /**
  * Splits an incoming stream of binary data into MPEG-2 Transport
@@ -11114,7 +11699,6 @@ TransportPacketStream = function() {
 
   this.push = function(bytes) {
     var
-      i = 0,
       startIndex = 0,
       endIndex = MP2T_PACKET_LENGTH,
       everything;
@@ -11157,7 +11741,7 @@ TransportPacketStream = function() {
     }
   };
 
-  this.flush = function () {
+  this.flush = function() {
     // If the buffer contains a whole packet when we are being flushed, emit it
     // and empty the buffer. Otherwise hold onto the data because it may be
     // important for decoding the next segment
@@ -11175,7 +11759,7 @@ TransportPacketStream.prototype = new Stream();
  * forms of the individual transport stream packets.
  */
 TransportParseStream = function() {
-  var parsePsi, parsePat, parsePmt, parsePes, self;
+  var parsePsi, parsePat, parsePmt, self;
   TransportParseStream.prototype.init.call(this);
   self = this;
 
@@ -11203,8 +11787,8 @@ TransportParseStream = function() {
   };
 
   parsePat = function(payload, pat) {
-    pat.section_number = payload[7];
-    pat.last_section_number = payload[8];
+    pat.section_number = payload[7]; // eslint-disable-line camelcase
+    pat.last_section_number = payload[8]; // eslint-disable-line camelcase
 
     // skip the PSI header and parse the first PMT entry
     self.pmtPid = (payload[10] & 0x1F) << 8 | payload[11];
@@ -11304,7 +11888,7 @@ TransportParseStream = function() {
     }
   };
 
-  this.processPes_ = function (packet, offset, result) {
+  this.processPes_ = function(packet, offset, result) {
     result.streamType = this.programMapTable[result.pid];
     result.type = 'pes';
     result.data = packet.subarray(offset);
@@ -11329,6 +11913,7 @@ TransportParseStream.STREAM_TYPES  = {
  */
 ElementaryStream = function() {
   var
+    self = this,
     // PES packet fragments
     video = {
       data: [],
@@ -11364,20 +11949,20 @@ ElementaryStream = function() {
         // the PTS and DTS are not written out directly. For information
         // on how they are encoded, see
         // http://dvd.sourceforge.net/dvdinfo/pes-hdr.html
-        pes.pts = (payload[9] & 0x0E) << 27
-          | (payload[10] & 0xFF) << 20
-          | (payload[11] & 0xFE) << 12
-          | (payload[12] & 0xFF) <<  5
-          | (payload[13] & 0xFE) >>>  3;
+        pes.pts = (payload[9] & 0x0E) << 27 |
+          (payload[10] & 0xFF) << 20 |
+          (payload[11] & 0xFE) << 12 |
+          (payload[12] & 0xFF) <<  5 |
+          (payload[13] & 0xFE) >>>  3;
         pes.pts *= 4; // Left shift by 2
         pes.pts += (payload[13] & 0x06) >>> 1; // OR by the two LSBs
         pes.dts = pes.pts;
         if (ptsDtsFlags & 0x40) {
-          pes.dts = (payload[14] & 0x0E ) << 27
-            | (payload[15] & 0xFF ) << 20
-            | (payload[16] & 0xFE ) << 12
-            | (payload[17] & 0xFF ) << 5
-            | (payload[18] & 0xFE ) >>> 3;
+          pes.dts = (payload[14] & 0x0E) << 27 |
+            (payload[15] & 0xFF) << 20 |
+            (payload[16] & 0xFE) << 12 |
+            (payload[17] & 0xFF) << 5 |
+            (payload[18] & 0xFE) >>> 3;
           pes.dts *= 4; // Left shift by 2
           pes.dts += (payload[18] & 0x06) >>> 1; // OR by the two LSBs
         }
@@ -11417,11 +12002,9 @@ ElementaryStream = function() {
       stream.size = 0;
 
       self.trigger('data', event);
-    },
-    self;
+    };
 
   ElementaryStream.prototype.init.call(this);
-  self = this;
 
   this.push = function(data) {
     ({
@@ -11524,7 +12107,7 @@ var m2ts = {
   ElementaryStream: ElementaryStream,
   CaptionStream: CaptionStream.CaptionStream,
   Cea608Stream: CaptionStream.Cea608Stream,
-  MetadataStream: require('./metadata-stream'),
+  MetadataStream: require('./metadata-stream')
 };
 
 for (var type in StreamTypes) {
@@ -11535,7 +12118,7 @@ for (var type in StreamTypes) {
 
 module.exports = m2ts;
 
-},{"../utils/stream.js":89,"./caption-stream":81,"./metadata-stream":83,"./stream-types":84,"./stream-types.js":84}],83:[function(require,module,exports){
+},{"../utils/stream.js":92,"./caption-stream":84,"./metadata-stream":86,"./stream-types":87,"./stream-types.js":87}],86:[function(require,module,exports){
 /**
  * Accepts program elementary stream (PES) data events and parses out
  * ID3 metadata from them, if present.
@@ -11564,14 +12147,14 @@ var
   parseIso88591 = function(bytes, start, end) {
     return unescape(percentEncode(bytes, start, end)); // jshint ignore:line
   },
-  parseSyncSafeInteger = function (data) {
+  parseSyncSafeInteger = function(data) {
     return (data[0] << 21) |
             (data[1] << 14) |
             (data[2] << 7) |
             (data[3]);
   },
   tagParsers = {
-    'TXXX': function(tag) {
+    TXXX: function(tag) {
       var i;
       if (tag.data[0] !== 3) {
         // ignore frames with unrecognized character encodings
@@ -11589,7 +12172,7 @@ var
       }
       tag.data = tag.value;
     },
-    'WXXX': function(tag) {
+    WXXX: function(tag) {
       var i;
       if (tag.data[0] !== 3) {
         // ignore frames with unrecognized character encodings
@@ -11605,7 +12188,7 @@ var
         }
       }
     },
-    'PRIV': function(tag) {
+    PRIV: function(tag) {
       var i;
 
       for (i = 0; i < tag.data.length; i++) {
@@ -11671,6 +12254,7 @@ MetadataStream = function(options) {
           chunk.data[1] !== 'D'.charCodeAt(0) ||
           chunk.data[2] !== '3'.charCodeAt(0))) {
       if (settings.debug) {
+        // eslint-disable-next-line no-console
         console.log('Skipping unrecognized metadata packet');
       }
       return;
@@ -11730,6 +12314,7 @@ MetadataStream = function(options) {
       // determine the number of bytes in this frame
       frameSize = parseSyncSafeInteger(tag.data.subarray(frameStart + 4, frameStart + 8));
       if (frameSize < 1) {
+         // eslint-disable-next-line no-console
         return console.log('Malformed ID3 frame encountered. Skipping metadata parsing.');
       }
       frameHeader = String.fromCharCode(tag.data[frameStart],
@@ -11772,7 +12357,7 @@ MetadataStream.prototype = new Stream();
 
 module.exports = MetadataStream;
 
-},{"../utils/stream":89,"./stream-types":84}],84:[function(require,module,exports){
+},{"../utils/stream":92,"./stream-types":87}],87:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -11781,7 +12366,7 @@ module.exports = {
   METADATA_STREAM_TYPE: 0x15
 };
 
-},{}],85:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 module.exports = {
   generator: require('./mp4-generator'),
   Transmuxer: require('./transmuxer').Transmuxer,
@@ -11789,7 +12374,7 @@ module.exports = {
   VideoSegmentStream: require('./transmuxer').VideoSegmentStream
 };
 
-},{"./mp4-generator":86,"./transmuxer":87}],86:[function(require,module,exports){
+},{"./mp4-generator":89,"./transmuxer":90}],89:[function(require,module,exports){
 /**
  * mux.js
  *
@@ -11801,9 +12386,9 @@ module.exports = {
  */
 'use strict';
 
-var box, dinf, esds, ftyp, mdat, mfhd, minf, moof, moov, mvex, mvhd, trak,
-    tkhd, mdia, mdhd, hdlr, sdtp, stbl, stsd, styp, traf, trex, trun,
-    types, MAJOR_BRAND, MINOR_VERSION, AVC1_BRAND, VIDEO_HDLR,
+var box, dinf, esds, ftyp, mdat, mfhd, minf, moof, moov, mvex, mvhd,
+    trak, tkhd, mdia, mdhd, hdlr, sdtp, stbl, stsd, traf, trex,
+    trun, types, MAJOR_BRAND, MINOR_VERSION, AVC1_BRAND, VIDEO_HDLR,
     AUDIO_HDLR, HDLR_TYPES, VMHD, SMHD, DREF, STCO, STSC, STSZ, STTS;
 
 // pre-calculate constants
@@ -11902,8 +12487,8 @@ var box, dinf, esds, ftyp, mdat, mfhd, minf, moof, moov, mvex, mvhd, trak,
     0x64, 0x6c, 0x65, 0x72, 0x00 // name: 'SoundHandler'
   ]);
   HDLR_TYPES = {
-    "video":VIDEO_HDLR,
-    "audio": AUDIO_HDLR
+    video: VIDEO_HDLR,
+    audio: AUDIO_HDLR
   };
   DREF = new Uint8Array([
     0x00, // version 0
@@ -11930,7 +12515,7 @@ var box, dinf, esds, ftyp, mdat, mfhd, minf, moof, moov, mvex, mvhd, trak,
     0x00, // version
     0x00, 0x00, 0x00, // flags
     0x00, 0x00, 0x00, 0x00, // sample_size
-    0x00, 0x00, 0x00, 0x00, // sample_count
+    0x00, 0x00, 0x00, 0x00 // sample_count
   ]);
   STTS = STCO;
   VMHD = new Uint8Array([
@@ -11941,7 +12526,7 @@ var box, dinf, esds, ftyp, mdat, mfhd, minf, moof, moov, mvex, mvhd, trak,
     0x00, 0x00,
     0x00, 0x00 // opcolor
   ]);
-})();
+}());
 
 box = function(type) {
   var
@@ -12057,7 +12642,7 @@ mfhd = function(sequenceNumber) {
     (sequenceNumber & 0xFF000000) >> 24,
     (sequenceNumber & 0xFF0000) >> 16,
     (sequenceNumber & 0xFF00) >> 8,
-    sequenceNumber & 0xFF, // sequence_number
+    sequenceNumber & 0xFF // sequence_number
   ]));
 };
 minf = function(track) {
@@ -12280,11 +12865,7 @@ stbl = function(track) {
       // MP4AudioSampleEntry, ISO/IEC 14496-14
     ]), esds(track));
   };
-})();
-
-styp = function() {
-  return box(types.styp, MAJOR_BRAND, MINOR_VERSION, MAJOR_BRAND);
-};
+}());
 
 tkhd = function(track) {
   var result = new Uint8Array([
@@ -12531,11 +13112,11 @@ trex = function(track) {
   trun = function(track, offset) {
     if (track.type === 'audio') {
       return audioTrun(track, offset);
-    } else {
-      return videoTrun(track, offset);
     }
+
+    return videoTrun(track, offset);
   };
-})();
+}());
 
 module.exports = {
   ftyp: ftyp,
@@ -12555,7 +13136,7 @@ module.exports = {
   }
 };
 
-},{}],87:[function(require,module,exports){
+},{}],90:[function(require,module,exports){
 /**
  * mux.js
  *
@@ -12589,7 +13170,7 @@ var VIDEO_PROPERTIES = [
   'height',
   'profileIdc',
   'levelIdc',
-  'profileCompatibility',
+  'profileCompatibility'
 ];
 
 // object types
@@ -12609,7 +13190,7 @@ var
  * Default sample object
  * see ISO/IEC 14496-12:2012, section 8.6.4.3
  */
-createDefaultSample = function () {
+createDefaultSample = function() {
   return {
     size: 0,
     flags: {
@@ -12622,7 +13203,7 @@ createDefaultSample = function () {
   };
 };
 
-isLikelyAacData = function (data) {
+isLikelyAacData = function(data) {
   if ((data[0] === 'I'.charCodeAt(0)) &&
       (data[1] === 'D'.charCodeAt(0)) &&
       (data[2] === '3'.charCodeAt(0))) {
@@ -12967,7 +13548,7 @@ VideoSegmentStream = function(track) {
 
   // Search for a candidate Gop for gop-fusion from the gop cache and
   // return it or return null if no good candidate was found
-  this.getGopForFusion_ = function (nalUnit) {
+  this.getGopForFusion_ = function(nalUnit) {
     var
       halfSecond = 45000, // Half-a-second in a 90khz clock
       allowableOverlap = 10000, // About 3 frames @ 30fps
@@ -13019,10 +13600,7 @@ VideoSegmentStream = function(track) {
   };
 
   this.extendFirstKeyFrame_ = function(gops) {
-    var
-      h, i,
-      currentGop,
-      newGops;
+    var currentGop;
 
     if (!gops[0][0].keyFrame) {
       // Remove the first GOP
@@ -13050,8 +13628,6 @@ VideoSegmentStream = function(track) {
     var
       i,
       currentNal,
-      startPts,
-      startDts,
       currentFrame = [],
       frames = [];
 
@@ -13168,7 +13744,6 @@ VideoSegmentStream = function(track) {
       sample,
       currentGop,
       currentFrame,
-      currentSample,
       dataOffset = baseDataOffset || 0,
       samples = [];
 
@@ -13199,7 +13774,7 @@ VideoSegmentStream = function(track) {
   };
 
   // generate the track's raw mdat data from an array of gops
-  this.concatenateNalData_ = function (gops) {
+  this.concatenateNalData_ = function(gops) {
     var
       h, i, j,
       currentGop,
@@ -13242,7 +13817,7 @@ VideoSegmentStream.prototype = new Stream();
  * duration for each frame/sample we process in order to calculate
  * the baseMediaDecodeTime
  */
-collectDtsInfo = function (track, data) {
+collectDtsInfo = function(track, data) {
   if (typeof data.pts === 'number') {
     if (track.timelineStartInfo.pts === undefined) {
       track.timelineStartInfo.pts = data.pts;
@@ -13284,7 +13859,7 @@ collectDtsInfo = function (track, data) {
  * Clear values used to calculate the baseMediaDecodeTime between
  * tracks
  */
-clearDtsInfo = function (track) {
+clearDtsInfo = function(track) {
   delete track.minSegmentDts;
   delete track.maxSegmentDts;
   delete track.minSegmentPts;
@@ -13296,7 +13871,7 @@ clearDtsInfo = function (track) {
  * DTS the transmuxer has ever seen and the minimum DTS for the
  * current track
  */
-calculateTrackBaseMediaDecodeTime = function (track) {
+calculateTrackBaseMediaDecodeTime = function(track) {
   var
     oneSecondInPTS = 90000, // 90kHz clock
     scale,
@@ -13548,8 +14123,6 @@ Transmuxer = function(options) {
     });
 
     pipeline.aacStream.on('data', function(data) {
-      var i;
-
       if (data.type === 'timed-metadata' && !pipeline.audioSegmentStream) {
         audioTrack = audioTrack || {
           timelineStartInfo: {
@@ -13633,7 +14206,7 @@ Transmuxer = function(options) {
           pipeline.coalesceStream.numberOfTracks++;
           pipeline.videoSegmentStream = new VideoSegmentStream(videoTrack);
 
-          pipeline.videoSegmentStream.on('timelineStartInfo', function(timelineStartInfo){
+          pipeline.videoSegmentStream.on('timelineStartInfo', function(timelineStartInfo) {
           // When video emits timelineStartInfo data after a flush, we forward that
           // info to the AudioSegmentStream, if it exists, because video timeline
           // data takes precedence.
@@ -13673,7 +14246,7 @@ Transmuxer = function(options) {
   };
 
   // hook up the segment streams once track metadata is delivered
-  this.setBaseMediaDecodeTime = function (baseMediaDecodeTime) {
+  this.setBaseMediaDecodeTime = function(baseMediaDecodeTime) {
     var pipeline = this.transmuxPipeline_;
 
     this.baseMediaDecodeTime = baseMediaDecodeTime;
@@ -13726,7 +14299,7 @@ module.exports = {
   VIDEO_PROPERTIES: VIDEO_PROPERTIES
 };
 
-},{"../aac":75,"../codecs/adts.js":76,"../codecs/h264":77,"../m2ts/m2ts.js":82,"../utils/stream.js":89,"./mp4-generator.js":86}],88:[function(require,module,exports){
+},{"../aac":78,"../codecs/adts.js":79,"../codecs/h264":80,"../m2ts/m2ts.js":85,"../utils/stream.js":92,"./mp4-generator.js":89}],91:[function(require,module,exports){
 'use strict';
 
 var ExpGolomb;
@@ -13812,16 +14385,15 @@ ExpGolomb = function(workingData) {
     bits = size - bits;
     if (bits > 0) {
       return valu << bits | this.readBits(bits);
-    } else {
-      return valu;
     }
+    return valu;
   };
 
   // ():uint
   this.skipLeadingZeros = function() {
     var leadingZeroCount; // :uint
-    for (leadingZeroCount = 0 ; leadingZeroCount < workingBitsAvailable ; ++leadingZeroCount) {
-      if (0 !== (workingWord & (0x80000000 >>> leadingZeroCount))) {
+    for (leadingZeroCount = 0; leadingZeroCount < workingBitsAvailable; ++leadingZeroCount) {
+      if ((workingWord & (0x80000000 >>> leadingZeroCount)) !== 0) {
         // the first bit of working word is 1
         workingWord <<= leadingZeroCount;
         workingBitsAvailable -= leadingZeroCount;
@@ -13856,15 +14428,14 @@ ExpGolomb = function(workingData) {
     if (0x01 & valu) {
       // the number is odd if the low order bit is set
       return (1 + valu) >>> 1; // add 1 to make it even, and divide by 2
-    } else {
-      return -1 * (valu >>> 1); // divide by two then make it negative
     }
+    return -1 * (valu >>> 1); // divide by two then make it negative
   };
 
   // Some convenience functions
   // :Boolean
   this.readBoolean = function() {
-    return 1 === this.readBits(1);
+    return this.readBits(1) === 1;
   };
 
   // ():int
@@ -13877,7 +14448,7 @@ ExpGolomb = function(workingData) {
 
 module.exports = ExpGolomb;
 
-},{}],89:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 /**
  * mux.js
  *
@@ -13995,7 +14566,7 @@ Stream.prototype.flush = function(flushSource) {
 
 module.exports = Stream;
 
-},{}],90:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 var bundleFn = arguments[3];
 var sources = arguments[4];
 var cache = arguments[5];
@@ -14052,7 +14623,7 @@ module.exports = function (fn) {
     ));
 };
 
-},{}],91:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 (function (global){
 /**
  * @file videojs-contrib-hls.js
@@ -14088,7 +14659,7 @@ var _xhr = require('./xhr');
 
 var _xhr2 = _interopRequireDefault(_xhr);
 
-var _decrypter = require('./decrypter');
+var _aesDecrypter = require('aes-decrypter');
 
 var _binUtils = require('./bin-utils');
 
@@ -14115,6 +14686,14 @@ var _config2 = _interopRequireDefault(_config);
 var _renditionMixin = require('./rendition-mixin');
 
 var _renditionMixin2 = _interopRequireDefault(_renditionMixin);
+
+var _gapSkipper = require('./gap-skipper');
+
+var _gapSkipper2 = _interopRequireDefault(_gapSkipper);
+
+var _globalWindow = require('global/window');
+
+var _globalWindow2 = _interopRequireDefault(_globalWindow);
 
 /**
  * determine if an object a is differnt from
@@ -14146,9 +14725,9 @@ var objectChanged = function objectChanged(a, b) {
 var Hls = {
   PlaylistLoader: _playlistLoader2['default'],
   Playlist: _playlist2['default'],
-  Decrypter: _decrypter.Decrypter,
-  AsyncStream: _decrypter.AsyncStream,
-  decrypt: _decrypter.decrypt,
+  Decrypter: _aesDecrypter.Decrypter,
+  AsyncStream: _aesDecrypter.AsyncStream,
+  decrypt: _aesDecrypter.decrypt,
   utils: _binUtils2['default'],
   xhr: (0, _xhr2['default'])()
 };
@@ -14189,7 +14768,7 @@ var safeGetComputedStyle = function safeGetComputedStyle(el, property) {
     return '';
   }
 
-  result = getComputedStyle(el);
+  result = _globalWindow2['default'].getComputedStyle(el);
   if (!result) {
     return '';
   }
@@ -14474,10 +15053,11 @@ var HlsHandler = (function (_Component) {
       this.options_.tech = this.tech_;
       this.options_.externHls = Hls;
       this.masterPlaylistController_ = new _masterPlaylistController2['default'](this.options_);
+      this.gapSkipper_ = new _gapSkipper2['default'](this.options_);
 
       // `this` in selectPlaylist should be the HlsHandler for backwards
       // compatibility with < v2
-      this.masterPlaylistController_.selectPlaylist = Hls.STANDARD_PLAYLIST_SELECTOR.bind(this);
+      this.masterPlaylistController_.selectPlaylist = this.selectPlaylist ? this.selectPlaylist.bind(this) : Hls.STANDARD_PLAYLIST_SELECTOR.bind(this);
 
       // re-expose some internal objects for backwards compatibility with < v2
       this.playlists = this.masterPlaylistController_.masterPlaylistLoader_;
@@ -14505,24 +15085,30 @@ var HlsHandler = (function (_Component) {
         }
       });
 
-      Object.defineProperty(this.stats, 'bandwidth', {
-        get: function get() {
-          return _this3.bandwidth || 0;
-        }
-      });
-      Object.defineProperty(this.stats, 'mediaRequests', {
-        get: function get() {
-          return _this3.masterPlaylistController_.mediaRequests_() || 0;
-        }
-      });
-      Object.defineProperty(this.stats, 'mediaTransferDuration', {
-        get: function get() {
-          return _this3.masterPlaylistController_.mediaTransferDuration_() || 0;
-        }
-      });
-      Object.defineProperty(this.stats, 'mediaBytesTransferred', {
-        get: function get() {
-          return _this3.masterPlaylistController_.mediaBytesTransferred_() || 0;
+      Object.defineProperties(this.stats, {
+        bandwidth: {
+          get: function get() {
+            return _this3.bandwidth || 0;
+          },
+          enumerable: true
+        },
+        mediaRequests: {
+          get: function get() {
+            return _this3.masterPlaylistController_.mediaRequests_() || 0;
+          },
+          enumerable: true
+        },
+        mediaTransferDuration: {
+          get: function get() {
+            return _this3.masterPlaylistController_.mediaTransferDuration_() || 0;
+          },
+          enumerable: true
+        },
+        mediaBytesTransferred: {
+          get: function get() {
+            return _this3.masterPlaylistController_.mediaBytesTransferred_() || 0;
+          },
+          enumerable: true
         }
       });
 
@@ -14650,6 +15236,7 @@ var HlsHandler = (function (_Component) {
       if (this.masterPlaylistController_) {
         this.masterPlaylistController_.dispose();
       }
+      this.gapSkipper_.dispose();
       this.tech_.audioTracks().removeEventListener('change', this.audioTrackChange_);
       _get(Object.getPrototypeOf(HlsHandler.prototype), 'dispose', this).call(this);
     }
@@ -14717,11 +15304,11 @@ Hls.comparePlaylistBandwidth = function (left, right) {
   if (left.attributes && left.attributes.BANDWIDTH) {
     leftBandwidth = left.attributes.BANDWIDTH;
   }
-  leftBandwidth = leftBandwidth || window.Number.MAX_VALUE;
+  leftBandwidth = leftBandwidth || _globalWindow2['default'].Number.MAX_VALUE;
   if (right.attributes && right.attributes.BANDWIDTH) {
     rightBandwidth = right.attributes.BANDWIDTH;
   }
-  rightBandwidth = rightBandwidth || window.Number.MAX_VALUE;
+  rightBandwidth = rightBandwidth || _globalWindow2['default'].Number.MAX_VALUE;
 
   return leftBandwidth - rightBandwidth;
 };
@@ -14743,13 +15330,13 @@ Hls.comparePlaylistResolution = function (left, right) {
     leftWidth = left.attributes.RESOLUTION.width;
   }
 
-  leftWidth = leftWidth || window.Number.MAX_VALUE;
+  leftWidth = leftWidth || _globalWindow2['default'].Number.MAX_VALUE;
 
   if (right.attributes && right.attributes.RESOLUTION && right.attributes.RESOLUTION.width) {
     rightWidth = right.attributes.RESOLUTION.width;
   }
 
-  rightWidth = rightWidth || window.Number.MAX_VALUE;
+  rightWidth = rightWidth || _globalWindow2['default'].Number.MAX_VALUE;
 
   // NOTE - Fallback to bandwidth sort as appropriate in cases where multiple renditions
   // have the same media dimensions/ resolution
@@ -14778,7 +15365,7 @@ if (typeof _videoJs2['default'].MediaSource === 'undefined' || typeof _videoJs2[
 if (_videojsContribMediaSources.MediaSource.supportsNativeMediaSources()) {
   _videoJs2['default'].getComponent('Html5').registerSourceHandler(HlsSourceHandler('html5'));
 }
-if (window.Uint8Array) {
+if (_globalWindow2['default'].Uint8Array) {
   _videoJs2['default'].getComponent('Flash').registerSourceHandler(HlsSourceHandler('flash'));
 }
 
@@ -14795,5 +15382,5 @@ module.exports = {
   HlsSourceHandler: HlsSourceHandler
 };
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./bin-utils":1,"./config":2,"./decrypter":6,"./master-playlist-controller":8,"./playlist":10,"./playlist-loader":9,"./rendition-mixin":12,"./xhr":17,"global/document":19,"m3u8-parser":56,"videojs-contrib-media-sources":73}]},{},[91])(91)
+},{"./bin-utils":1,"./config":2,"./gap-skipper":3,"./master-playlist-controller":5,"./playlist":7,"./playlist-loader":6,"./rendition-mixin":9,"./xhr":14,"aes-decrypter":18,"global/document":24,"global/window":25,"m3u8-parser":62,"videojs-contrib-media-sources":76}]},{},[94])(94)
 });

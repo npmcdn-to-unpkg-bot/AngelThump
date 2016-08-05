@@ -26,6 +26,10 @@ module.exports = function() {
     res.render('embed', {username: req.params.username})
   })
 
+  app.get('/embed-test/:username', function(req, res, next){
+    res.render('embed-test', {username: req.params.username})
+  })
+
   app.post('/signup', signup(app));
 
   // support GET for easy testing

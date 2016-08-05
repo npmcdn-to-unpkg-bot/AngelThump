@@ -1,0 +1,143 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <link href="//vjs.zencdn.net/5.10.7/video-js.css" rel="stylesheet">
+    <link href="/css/videojs-resolution-switcher.css" rel="stylesheet">
+    <link href="/css/videojs.logobrand.css" rel="stylesheet">
+    <link rel="shortcut icon" href="/favicon.png">
+
+  <title>
+    AngelThump
+  </title>
+
+  <style type="text/css"> 
+  html {
+    margin: 0;
+    padding: 0;
+    background: #000000;
+    overflow: hidden;
+  }
+  
+  #yee {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+  }
+  
+  .video-js.vjs-playing .vjs-tech {
+    pointer-events: none;
+  }
+  
+  .vjs-fullscreen.vjs-user-inactive {
+    cursor: none;
+  }
+  
+  </style>
+  
+</head>
+
+<body>
+
+  <video id=yee class="video-js vjs-default-skin" autoplay controls preload="auto">
+</video>
+  <script src="//vjs.zencdn.net/5.10.7/video.js"></script>
+  <script src="/js/videojs-contrib-hls-test.js"></script>
+  <script src="/js/videojs-resolution-switcher-test.js"></script>
+  <script src="/js/videojs.logobrand.js"></script>
+  <script src="/js/videojs-persistvolume.js"></script>
+  <script>
+    var channel = "<%= username %>";
+
+  var sources = 
+    [
+      {type:"application/x-mpegURL", src: "http://162.243.163.108/hls/" + channel + ".m3u8", label: "Source", res: 4, hls: true},
+      {type:"application/x-mpegURL", src: "http://162.243.163.108/hls/" + channel + ".m3u8", label: "High", res: 3},
+      {type:"application/x-mpegURL", src: "http://162.243.163.108/hls/" + channel + ".m3u8", label: "Medium", res: 2},
+      {type:"application/x-mpegURL", src: "http://162.243.163.108/hls/" + channel + ".m3u8", label: "Low", res: 1},
+      {type:"application/x-mpegURL", src: "http://162.243.163.108/hls/" + channel + ".m3u8", label: "Mobile", res: 1, hls: true},
+    ];
+
+
+    // local storage makes everything a string, 
+    // "10" explicity sets base-10 because memes
+    var userDefaultRes = parseInt(localStorage.getItem('userDefaultRes') || "4", 10);
+    var hls;
+
+    var player = videojs('yee', {
+    plugins: {
+        videoJsResolutionSwitcher: {
+          default: userDefaultRes,
+          dynamicLabel: true
+        }
+      }
+    }, function(){
+    	player.updateSrc(sources);
+      hls = player.tech({ IWillNotUseThisInPlugins: true }).hls;
+    });
+
+  
+    player.on('resolutionchange', function(){
+      // save current resolution to localstorage
+      localStorage.setItem('userDefaultRes', player.currentResolution().sources[0].res)
+      //player.reset();
+      //hls.playlists.media(hls.playlists.master.playlists[player.currentResolution().sources[0].res]);
+    });
+
+    player.on("pause", function () {
+      player.reset();
+      player.one("play", function () {
+        player.currentResolution(player.currentResolution().label);
+      });
+    }); 
+
+	player.poster('http://angelthump.com/default_offline.jpg');
+
+    player.logobrand({
+         image: "//angelthump.com/picdonate.png",
+         destination: "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=3VKPL7E8RSL38"});
+  
+    var requestTime = 1000;
+    function retry() {
+    setTimeout(function() {
+        player.currentResolution(player.currentResolution().label);
+
+        if(requestTime < 16000) {
+        requestTime = requestTime * 2;
+        }
+        running = false;
+
+    }, requestTime);
+    }
+
+    var running = false;
+    
+
+    player.on('error', function(e) {
+      if(player.error().code == 4 ) {
+        //player.error(null);
+        //player.hasStarted(false);
+        if(!running) {
+        	//retry();
+        	running = true;
+		    }
+      } else if (player.error().code == 2) {
+        //player.error(null);
+        //player.hasStarted(false);
+        if(!running) {
+        	//retry();
+        	running = true;
+		    }
+      }
+    })
+    
+    player.persistvolume({
+       namespace: "YEE boi"
+    });
+  </script>
+
+
+</body>
+
+</html>
