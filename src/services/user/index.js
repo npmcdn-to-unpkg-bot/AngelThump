@@ -1,31 +1,25 @@
 'use strict';
 
-const path = require('path');
-const NeDB = require('nedb');
-const service = require('feathers-nedb');
 const hooks = require('./hooks');
+const service = require('feathers-mongoose');
+const mongoose = require('mongoose');
+const Users = require('./users-model.js');
 
 module.exports = function(){
   const app = this;
 
-  const db = new NeDB({
-    filename: path.join(app.get('nedb'), 'users.db'),
-    autoload: true
-  });
-
-  let options = {
-    Model: db,
-    paginate: {
-      default: 5,
-      max: 25
-    }
-  };
+mongoose.Promise = global.Promise;
+mongoose.connect('mongodb://localhost:27017/feathers');
 
   // Initialize our service with any options it requires
-  app.use('/users', service(options));
+  app.use('/users', service({
+  Model: Users,
+  lean: true
+  }));
 
   // Get our initialize service to that we can bind hooks
   const userService = app.service('/users');
+
 
   userService.filter('streamkey', function(data, connection, hook) {
     // The id of the user that created the todo
