@@ -4,7 +4,7 @@
 
 ## About
 
-An open source web framework for the Angelthump streaming platform. Uses feathersjs.com
+An open source web framework for the AngelThump streaming platform. The web framework is feathersjs and it is located at www.feathersjs.com
 
 ## Getting Started
 
