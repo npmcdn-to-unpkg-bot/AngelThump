@@ -3,7 +3,7 @@
   "port": 3030,
   "nedb": "../data/",
   "public": "../public/",
-  "mongodb": "mongodb://localhost:27017/feathers"
+  "mongodb": "mongodb://localhost:27017/feathers",
   "auth": {
     "token": {
       "secret": "s0YEQrcpipB8Avv1Ed9TmgwPeYSsbmyn7T1QS0XG+ngJZAZr/XMMO46xbZMtngTtsNgELZYSBosqqSUFJHGs0w=="
