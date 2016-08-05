@@ -4,15 +4,6 @@ const rp = require('request-promise');
 
 module.exports = function(app) {
   return function(req, res, next) {
-    // Perform actions
-    // viewers
-    // "http://www.overpoweredstrim.me/viewers?app=live&name=mannekino",
-    // live status
-    // "http://www.overpoweredstrim.me/live?app=live&name=mannekino",
-    // stream title
-    // "http://www.overpoweredstrim.me/title",
-    // thumbnail
-    // "http://www.overpoweredstrim.me/thumbnail_mannekino.jpg"
     const requested_username = req.params.username;
     console.log('requested_username!!:', requested_username);
 
