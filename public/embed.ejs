@@ -67,6 +67,13 @@
     player.src(sources);
     player.qualityPickerPlugin();
 
+    player.on("pause", function () {
+      player.reset();
+      player.one("play", function () {
+        player.src(sources);
+      });
+    }); 
+
 
   player.poster('http://angelthump.com/default_offline.jpg');
 

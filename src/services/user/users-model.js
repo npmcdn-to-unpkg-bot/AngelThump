@@ -15,7 +15,7 @@ const usersSchema = new Schema({
       message: '{VALUE} is not a valid email!' }},
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  streamkey: { type: String},
+  streamkey: { type: String, unique: true},
   banned:    {type: Boolean, 'default': false},
   createdAt: { type: Date, 'default': Date.now },
   updatedAt: { type: Date, 'default': Date.now }
