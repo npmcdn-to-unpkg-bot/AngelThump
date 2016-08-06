@@ -67,8 +67,8 @@
     player.qualityPickerPlugin();
 
     player.on("pause", function () {
-      player.reset();
       player.one("play", function () {
+        player.reset();
         player.src(sources);
       });
     }); 
