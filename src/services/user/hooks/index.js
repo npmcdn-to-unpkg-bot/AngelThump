@@ -1,5 +1,9 @@
 'use strict';
 
+
+const insensitive = require('./insensitive');
+
+
 const username = require('./username');
 
 const streamkey = require('./streamkey');
@@ -14,13 +18,14 @@ exports.before = {
   find: [
     auth.verifyToken(),
     auth.populateUser(),
-    auth.restrictToAuthenticated()
+    auth.restrictToAuthenticated(),
+    insensitive(),
   ],
   get: [
     auth.verifyToken(),
     auth.populateUser(),
     auth.restrictToAuthenticated(),
-    auth.restrictToOwner({ ownerField: '_id' })
+    auth.restrictToOwner({ ownerField: '_id' }),
   ],
   create: [
     auth.hashPassword(), 

@@ -29,11 +29,12 @@ module.exports.initial = function(app) {
     })
     // Then we're good to stream
     .then((users) => {
-      if (users.length > 0) {
+    	console.log(users);
+      if (users.length > 0 && users[0].banned == false) {
         const username = users[0].username;
         res.redirect(username)
       }else{
-        res.status(404).send('No Users With That Key')
+        res.status(503).send('You are banned');
       }
     })
     // On errors, just call our error middleware

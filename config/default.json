@@ -7,9 +7,6 @@
     "token": {
       "secret": "s0YEQrcpipB8Avv1Ed9TmgwPeYSsbmyn7T1QS0XG+ngJZAZr/XMMO46xbZMtngTtsNgELZYSBosqqSUFJHGs0w=="
     },
-    "local": {
-	"usernameField": "username"
-	},
     "successRedirect": "/profile.html"
   }
 }

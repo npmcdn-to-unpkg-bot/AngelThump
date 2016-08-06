@@ -6,9 +6,11 @@ const authentication = require('feathers-authentication');
 module.exports = function() {
   const app = this;
 
-  let config = app.get('auth');
-  
+  //let config = app.get('auth');
+  app.configure(authentication({
+  local: {
+  	usernameField: 'username'
+  }
+}));
 
-  
-  app.configure(authentication(config));
-};
+}

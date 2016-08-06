@@ -16,6 +16,7 @@ const usersSchema = new Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   streamkey: { type: String, unique: true},
+  verified_email: { type: Boolean, 'default': false},
   banned:    {type: Boolean, 'default': false},
   createdAt: { type: Date, 'default': Date.now },
   updatedAt: { type: Date, 'default': Date.now }
