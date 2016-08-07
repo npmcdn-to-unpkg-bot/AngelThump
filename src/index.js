@@ -2,8 +2,14 @@
 
 const app = require('./app');
 const port = app.get('port');
-const server = app.listen(port);
 
-server.on('listening', () =>
-  console.log(`Feathers application started on ${app.get('host')}:${port}`)
-);
+const fs = require('fs');
+const https  = require('https');
+
+const server = https.createServer({
+  key: fs.readFileSync('/etc/letsencrypt/live/angelthump.com/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/angelthump.com/cert.pem'),
+  chain: fs.readFileSync('/etc/letsencrypt/live/angelthump.com/fullchain.pem')
+}, app).listen(port);
+
+app.setup(server);

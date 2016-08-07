@@ -29,7 +29,6 @@ module.exports.initial = function(app) {
     })
     // Then we're good to stream
     .then((users) => {
-    	console.log(users);
       if (users.length > 0 && users[0].banned == false) {
         const username = users[0].username;
         res.redirect(username)
