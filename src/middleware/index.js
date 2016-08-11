@@ -14,21 +14,21 @@ module.exports = function() {
   // handling middleware should go last.
   const app = this;
 
-  app.set('view engine', 'ejs')
-  console.log(__dirname)
-  app.set('views', 'public')
+  app.set('view engine', 'ejs');
+  console.log(__dirname);
+  app.set('views', 'public');
 
   // TODO:
   // check if the username actually exists before trying to render this view
   // http://docs.feathersjs.com/guides/using-a-view-engine.html
 
   app.get('/embed/:username', function(req, res, next){
-    res.render('embed', {username: req.params.username})
-  })
+    res.render('embed', {username: req.params.username});
+  });
 
   app.get('/embed-test/:username', function(req, res, next){
-    res.render('embed-test', {username: req.params.username})
-  })
+    res.render('embed-test', {username: req.params.username});
+  });
 
   app.post('/signup', signup(app));
 

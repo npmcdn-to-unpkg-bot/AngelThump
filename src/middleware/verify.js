@@ -29,9 +29,9 @@ module.exports.initial = function(app) {
     })
     // Then we're good to stream
     .then((users) => {
-      if (users.length > 0 && users[0].banned == false) {
+      if (users.length > 0 && !users[0].banned) {
         const username = users[0].username;
-        res.redirect(username)
+        res.redirect(username);
       }else{
         res.status(503).send('You are banned');
       }
@@ -39,4 +39,4 @@ module.exports.initial = function(app) {
     // On errors, just call our error middleware
     .catch(() => res.status(403).send('Forbidden'));
   };
-}
+};

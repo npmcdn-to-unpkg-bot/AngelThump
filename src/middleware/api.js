@@ -22,22 +22,22 @@ module.exports = function(app) {
           rp({uri:`http://api.angelthump.com/viewers?app=live&name=${username}`}),
         ]).then( function (values){
           res.json({
-            live: values[0].trim() === "1",
+            live: values[0].trim() === '1',
             title: `${username}'s stream`,
             // title: title,
             viewers: parseInt(values[1], 10),
             thumbnail: `http://api.angelthump.com/thumbnail/${username}.jpg`,
-          })
+          });
         }).catch(() => res.status(404).send('API Date Not Found'));
       }else{
-        res.status(404).send(`No Users Named ${requested_username}`)
+        res.status(404).send(`No Users Named ${requested_username}`);
       }
     })
     // On errors, just call our error middleware
     .catch((e) => {
       console.log(e, 'forbidden requested_username:', requested_username);
       console.error(e.stack);
-      res.status(403).send('Forbidden')
+      res.status(403).send('Forbidden');
     });
   };
 };
