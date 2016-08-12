@@ -17,24 +17,24 @@
     background: #000000;
     overflow: hidden;
   }
-  
+
   #yee {
     position: absolute;
     width: 100%;
     height: 100%;
     top: 0;
   }
-  
+
   .video-js.vjs-playing .vjs-tech {
     pointer-events: none;
   }
-  
+
   .vjs-fullscreen.vjs-user-inactive {
     cursor: none;
   }
-  
+
   </style>
-  
+
 </head>
 
 <body>
@@ -50,7 +50,7 @@
   <script>
     var channel = "<%= username %>";
 
-  var sources = 
+  var sources =
     [
       {type:"application/dash+xml", src: "http://cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "US-EAST", res: 1},
       {type:"application/dash+xml", src: "http://w-cdn.angelthump.com/dash/" + channel + "/index.mpd", label: "US-WEST", res: 2},
@@ -58,7 +58,7 @@
       {type:"application/dash+xml", src: "http://128.199.80.156/dash/" + channel + "/index.mpd", label: "ASIA", res: 4}
     ];
 
-    // local storage makes everything a string, 
+    // local storage makes everything a string,
     // "10" explicity sets base-10 because memes
     var userDefaultRes = parseInt(localStorage.getItem('userDefaultRes') || "1", 10);
 
@@ -90,7 +90,7 @@
     player.logobrand({
          image: "//overpoweredstrim.me/angelthump.png",
          destination: "https://www.twitchalerts.com/donate/stioverpowered"});
-  
+
     var requestTime = 1000;
     function retry() {
     setTimeout(function() {
@@ -118,7 +118,7 @@
       }
     })
 
-    
+
 
     player.persistvolume({
        namespace: "YEE boi"

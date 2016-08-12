@@ -27,7 +27,7 @@
 			image.src = settings.image;
 		link.appendChild(image);
 		player.el().appendChild(link);
-		
+
 		this.loadImage = function(src){
 			document.getElementById("vjs-logobrand-image").src=src;
 		};
@@ -35,7 +35,7 @@
 			document.getElementById("vjs-logobrand-image-destination").href = href;
 		};
 		return this;
-	};	
+	};
 	// register the plugin with video.js
 	vjs.plugin('logobrand', logobrand);
 
