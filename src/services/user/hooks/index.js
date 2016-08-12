@@ -28,8 +28,8 @@ exports.before = {
     auth.restrictToOwner({ ownerField: '_id' }),
   ],
   create: [
-    auth.hashPassword(), 
-    streamkey.initialize(), 
+    auth.hashPassword(),
+    streamkey.initialize(),
     username()
   ],
   update: [
@@ -44,6 +44,7 @@ exports.before = {
     auth.populateUser(),
     auth.restrictToAuthenticated(),
     auth.restrictToOwner({ ownerField: '_id' }),
+    streamkey.considerReset()
     // todo: check if patch only sends partial data
     // so we don't accidentally wipe usernames
     // username()
@@ -64,9 +65,6 @@ exports.after = {
   get: [],
   create: [],
   update: [hooks.remove('streamkey')],
-  patch: [
-    
-    hooks.remove('streamkey')
-  ],
+  patch: [],
   remove: [hooks.remove('streamkey')]
 };

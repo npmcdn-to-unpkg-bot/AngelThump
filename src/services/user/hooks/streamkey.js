@@ -28,7 +28,7 @@ module.exports.initialize = function() {
 module.exports.considerReset = function() {
   return function(hook) {
     // reset if the user assigned their streamkey to 0
-    if(hook.result.streamkey === 0) {
+    if (hook.data.streamkey === 0) {
       // Assign the new data with the streamkey
       hook.data = Object.assign({}, hook.data, {
         streamkey: keyGen(hook.data.email)
