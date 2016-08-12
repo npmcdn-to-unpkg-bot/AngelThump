@@ -89,7 +89,7 @@ const Profile = React.createClass({
                 <em>Keyframe Interval: 2</em>
               </div>
               <div>
-              	<em>x264 option: scenecut=-1</em>
+                <em>x264 option: scenecut=-1</em>
               </div>
               <div>
                 <p>
@@ -120,7 +120,7 @@ const Profile = React.createClass({
       </footer>
     </main>
 
-    return <aside> 
+    return <aside>
       <img src={user.avatar || PLACEHOLDER} className="avatar" />
       <span className="username font-600">{user.username}</span>
     </aside>
@@ -145,7 +145,7 @@ const ProfileApp = React.createClass({
   componentDidMount() {
     const userService = app.service('users');
     // const messageService = app.service('messages');
-    const cached_user = app.get('user'); 
+    const cached_user = app.get('user');
     console.log(cached_user._id);
 
     userService.get(cached_user._id).then(user => this.setState({ user: user }))

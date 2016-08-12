@@ -2543,7 +2543,7 @@ function forEach(list, iterator, context) {
     if (arguments.length < 3) {
         context = this
     }
-    
+
     if (toString.call(list) === '[object Array]')
         forEachArray(list, iterator, context)
     else if (typeof list === 'string')
@@ -21196,7 +21196,7 @@ var _guid = 1;
 /**
  * Get the next unique ID
  *
- * @return {String} 
+ * @return {String}
  * @function newGUID
  */
 
