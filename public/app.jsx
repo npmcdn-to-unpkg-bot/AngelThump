@@ -27,10 +27,10 @@ const Profile = React.createClass({
     };
   },
 
-  resetStreamKey(){
+  resetStreamKey() {
     const userService = app.service('users');
-    userService.patch({
-      stream_key: 0
+    userService.patch(this.props.user._id, {
+      streamkey: 0
     });
   },
 
@@ -96,6 +96,14 @@ const Profile = React.createClass({
                   <a className="btn btn-primary" href="#" onClick={this.toggleStreamKey}>
                     {this.state.showStreamKey ? "Hide Stream Key" : "Show Stream Key"}
                   </a>
+                  {
+                    this.state.showStreamKey
+                      ? <button type='button' className='btn btn-warning reset'
+                         href='#' onClick={this.resetStreamKey}>
+                          Reset Stream Key
+                        </button>
+                      : ''
+                  }
                 </p>
                 <p>
                   {this.state.showStreamKey ? user.streamkey : "Stream Key Hidden"}
@@ -143,8 +151,7 @@ const ProfileApp = React.createClass({
     userService.get(cached_user._id).then(user => this.setState({ user: user }))
     .catch(e => console.error(e));
 
-
-    userService.on('patched', user => console.log('patched', user));
+    userService.on('patched', user => this.setState({user: user}));
   },
 
   render() {
