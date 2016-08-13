@@ -7,7 +7,7 @@
 
 ## About
 
-An open source web framework for the AngelThump streaming platform. The web framework is [feathersjs](www.feathersjs.com)
+An open source web framework for the AngelThump streaming platform. The web framework is [feathersjs](http://www.feathersjs.com)
 
 ## Donations
 I do not make any profit off of this. All donations will go to server costs and it will be appericated.
