@@ -9,6 +9,11 @@
 
 An open source web framework for the AngelThump streaming platform. The web framework is [feathersjs](http://www.feathersjs.com)
 
+Made by Overpowered & hephaestus
+
+Thanks to all the Contributors:
+SgtMaximum
+
 ## Donations
 I do not make any profit off of this. All donations will go to server costs and it will be appericated.
 
