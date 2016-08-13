@@ -7,7 +7,7 @@
 
 ## About
 
-An open source web framework for the AngelThump streaming platform. The web framework is [feathersjs](www.feathersjs.com)
+An open source web framework for the AngelThump streaming platform. The web framework is [feathersjs](https://www.feathersjs.com)
 
 ## Donations
 I do not make any profit off of this. All donations will go to server costs and it will be appericated.
@@ -22,7 +22,8 @@ Getting up and running is as easy as 1, 2, 3.
 2. Install your dependencies
     
     ```
-    cd path/to/AngelThump; npm install
+    cd path/to/AngelThump
+    npm install
     ```
 
 3. Start your app
