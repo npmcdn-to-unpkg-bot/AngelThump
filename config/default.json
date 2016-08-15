@@ -1,6 +1,9 @@
 {
   "host": "localhost",
   "port": 443,
+  "key": "/etc/letsencrypt/live/angelthump.com/privkey.pem",
+  "cert": "/etc/letsencrypt/live/angelthump.com/cert.pem",
+  "ca": "/etc/letsencrypt/live/angelthump.com/fullchain.pem",
   "public": "../public/",
   "mongodb": "mongodb://localhost:27017/feathers",
   "auth": {

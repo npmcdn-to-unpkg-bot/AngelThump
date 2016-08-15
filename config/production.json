@@ -1,6 +1,9 @@
 {
   "host": "feathers-chat-app.feathersjs.com",
   "port": 80,
+  "key": "/etc/letsencrypt/live/angelthump.com/privkey.pem",
+  "cert": "/etc/letsencrypt/live/angelthump.com/cert.pem",
+  "ca": "/etc/letsencrypt/live/angelthump.com/fullchain.pem",
   "nedb": "NEDB_BASE_PATH",
   "public": "../public/",
   "auth": {
