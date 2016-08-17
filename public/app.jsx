@@ -44,7 +44,6 @@ const Profile = React.createClass({
 
   render() {
     const user = this.props.user;
-    console.log('user:', user);
 
     // <a className="button" href="#" onClick={this.resetStreamKey}>Reset Stream Key</a>
 
@@ -52,7 +51,7 @@ const Profile = React.createClass({
       <div className="row">
         <div className="col-lg-8 col-lg-offset-4">
           <div className="nav">
-            <h3 className="title">{user.username} Profile</h3>
+            <h3 className="title">Profile</h3>
           </div>
           <div className="row">
             <div className="col-md-12">
@@ -61,6 +60,18 @@ const Profile = React.createClass({
               </div>
               <div>
                 {user.email}
+              </div>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-md-12">
+            <a href={'https://www.AngelThump.com/embed/' + user.username}>
+              <div>
+                <strong>Embed link: https://www.AngelThump.com/embed/{user.username}</strong>
+              </div>
+              </a>
+              <div>
+                <strong>Channel Name: {user.username}</strong>
               </div>
             </div>
           </div>
